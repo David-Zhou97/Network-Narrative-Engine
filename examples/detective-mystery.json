@@ -1,0 +1,680 @@
+{
+  "metadata": {
+    "id": "detective-mystery-001",
+    "title": "The Vanishing Heiress",
+    "description": "You are a private detective called to investigate the disappearance of Eleanor Ashworth, heir to the Ashworth fortune. The family's dark secrets may hold the key to finding her—or explain why she wanted to vanish.",
+    "author": "Example Author",
+    "version": "1.0.0",
+    "tags": ["mystery", "noir", "detective"]
+  },
+  "characters": [
+    {
+      "id": "victoria",
+      "name": "Victoria Ashworth",
+      "description": "The family matriarch, elegant but cold. She hired you but seems to be hiding something.",
+      "personality": "Calculating, aristocratic, guarded. Speaks in measured tones with an underlying threat.",
+      "traits": ["manipulative", "wealthy", "secretive", "desperate"],
+      "initialRelationship": 20
+    },
+    {
+      "id": "marcus",
+      "name": "Marcus Ashworth",
+      "description": "Eleanor's brother, nervous and fidgety. He stands to inherit if she's declared dead.",
+      "personality": "Anxious, defensive, prone to outbursts. Clearly stressed but unclear if from grief or guilt.",
+      "traits": ["nervous", "ambitious", "jealous", "conflicted"],
+      "initialRelationship": 0
+    },
+    {
+      "id": "catherine",
+      "name": "Catherine Mills",
+      "description": "Eleanor's personal assistant and closest confidante. Loyal but knows too much.",
+      "personality": "Professional, observant, protective of Eleanor's memory. More open when alone.",
+      "traits": ["loyal", "observant", "cautious", "grieving"],
+      "initialRelationship": 10
+    },
+    {
+      "id": "james",
+      "name": "Detective James Harlow",
+      "description": "The police detective on the case. Territorial but respects competence.",
+      "personality": "Gruff, experienced, by-the-book. Skeptical of private investigators but fair.",
+      "traits": ["professional", "skeptical", "thorough", "pragmatic"],
+      "initialRelationship": -10
+    }
+  ],
+  "worldState": {
+    "player": {
+      "reputation": {
+        "type": "number",
+        "default": 50,
+        "description": "Your professional reputation (0-100)",
+        "min": 0,
+        "max": 100
+      },
+      "intuition": {
+        "type": "number",
+        "default": 0,
+        "description": "Accumulated insight points",
+        "min": 0
+      }
+    },
+    "flags": {
+      "found_diary": {
+        "type": "boolean",
+        "default": false,
+        "description": "Discovered Eleanor's hidden diary"
+      },
+      "knows_affair": {
+        "type": "boolean",
+        "default": false,
+        "description": "Learned about the family scandal"
+      },
+      "marcus_confession": {
+        "type": "boolean",
+        "default": false,
+        "description": "Marcus revealed his involvement"
+      },
+      "found_safe_house": {
+        "type": "boolean",
+        "default": false,
+        "description": "Located Eleanor's hideout"
+      },
+      "victoria_threat": {
+        "type": "boolean",
+        "default": false,
+        "description": "Victoria has threatened you"
+      },
+      "police_ally": {
+        "type": "boolean",
+        "default": false,
+        "description": "Harlow is working with you"
+      }
+    },
+    "resources": {
+      "evidence": {
+        "type": "number",
+        "default": 0,
+        "description": "Pieces of concrete evidence collected"
+      },
+      "time": {
+        "type": "number",
+        "default": 5,
+        "description": "Days remaining before the trail goes cold"
+      }
+    }
+  },
+  "nodes": [
+    {
+      "id": "entry_mansion",
+      "type": "entry",
+      "title": "The Ashworth Mansion",
+      "preview": "Begin at the family estate where Eleanor was last seen.",
+      "description": "The Ashworth mansion looms before you, its Victorian architecture casting long shadows in the afternoon light. Victoria Ashworth waits at the entrance, her expression unreadable.",
+      "characters": ["victoria"],
+      "context": {
+        "location": "Ashworth Mansion - Front Entrance",
+        "mood": "tense",
+        "timeOfDay": "afternoon"
+      }
+    },
+    {
+      "id": "entry_office",
+      "type": "entry",
+      "title": "Your Office",
+      "preview": "Begin when Catherine Mills visits you seeking help.",
+      "description": "Catherine Mills sits across from your desk, clutching a folder of documents. She glances at the door nervously before speaking in hushed tones about her missing employer.",
+      "characters": ["catherine"],
+      "context": {
+        "location": "Your Private Office",
+        "mood": "secretive",
+        "timeOfDay": "evening"
+      }
+    },
+    {
+      "id": "story_victoria_meeting",
+      "type": "story",
+      "description": "Victoria leads you into the drawing room. Her demeanor is controlled, but you notice her hands trembling slightly as she pours tea.",
+      "beat": "First interview with the matriarch",
+      "characters": ["victoria"],
+      "context": {
+        "location": "Ashworth Mansion - Drawing Room",
+        "mood": "interrogative",
+        "timeOfDay": "afternoon"
+      },
+      "dialogue": [
+        {
+          "characterId": "victoria",
+          "text": "I trust you'll be discreet about this matter. The family name must be protected.",
+          "emotion": "guarded"
+        }
+      ]
+    },
+    {
+      "id": "story_eleanor_room",
+      "type": "story",
+      "description": "Eleanor's room is pristine—too pristine. Someone has cleaned it recently. A faint scent of lavender lingers, and you notice a loose floorboard near the window.",
+      "beat": "Searching Eleanor's private quarters",
+      "characters": [],
+      "context": {
+        "location": "Ashworth Mansion - Eleanor's Bedroom",
+        "mood": "mysterious",
+        "timeOfDay": "afternoon"
+      }
+    },
+    {
+      "id": "story_find_diary",
+      "type": "story",
+      "description": "Beneath the floorboard, you find Eleanor's diary wrapped in silk. The final entries speak of fear, betrayal, and a plan to disappear.",
+      "beat": "Discovering the hidden diary",
+      "characters": [],
+      "context": {
+        "location": "Ashworth Mansion - Eleanor's Bedroom",
+        "mood": "revelatory",
+        "timeOfDay": "afternoon"
+      },
+      "onEnter": [
+        { "type": "set", "target": "flags.found_diary", "value": true },
+        { "type": "add", "target": "resources.evidence", "value": 2 },
+        { "type": "add", "target": "player.intuition", "value": 10 }
+      ]
+    },
+    {
+      "id": "story_marcus_nervous",
+      "type": "story",
+      "description": "You find Marcus in the library, hastily closing his laptop. Sweat beads on his forehead despite the cool room. He's clearly hiding something.",
+      "beat": "Confrontation with the nervous heir",
+      "characters": ["marcus"],
+      "context": {
+        "location": "Ashworth Mansion - Library",
+        "mood": "confrontational",
+        "timeOfDay": "evening"
+      }
+    },
+    {
+      "id": "story_marcus_breaks",
+      "type": "story",
+      "description": "Marcus's composure crumbles. He admits to knowing Eleanor planned to expose the family's financial crimes—and that someone else knew too.",
+      "beat": "Marcus reveals the conspiracy",
+      "characters": ["marcus"],
+      "context": {
+        "location": "Ashworth Mansion - Library",
+        "mood": "intense",
+        "timeOfDay": "evening"
+      },
+      "onEnter": [
+        { "type": "set", "target": "flags.marcus_confession", "value": true },
+        { "type": "add", "target": "resources.evidence", "value": 3 },
+        { "type": "add", "target": "character.marcus.relationship", "value": -20 }
+      ]
+    },
+    {
+      "id": "story_catherine_secret",
+      "type": "story",
+      "description": "Catherine meets you in a quiet café. She slides an envelope across the table—photographs and a key to a storage unit. Her hands shake.",
+      "beat": "Catherine shares what she knows",
+      "characters": ["catherine"],
+      "context": {
+        "location": "Downtown Café",
+        "mood": "clandestine",
+        "timeOfDay": "night"
+      },
+      "onEnter": [
+        { "type": "add", "target": "character.catherine.relationship", "value": 15 }
+      ]
+    },
+    {
+      "id": "story_harlow_encounter",
+      "type": "story",
+      "description": "Detective Harlow intercepts you outside the mansion. He's not pleased about a private eye on his case, but he seems genuinely concerned about finding Eleanor.",
+      "beat": "Clash with the police",
+      "characters": ["james"],
+      "context": {
+        "location": "Outside Ashworth Mansion",
+        "mood": "tense",
+        "timeOfDay": "night"
+      }
+    },
+    {
+      "id": "story_harlow_alliance",
+      "type": "story",
+      "description": "After reviewing your evidence, Harlow nods grudgingly. 'Alright, we work together. But I lead.' It's an uneasy alliance, but better than working alone.",
+      "beat": "Forming a partnership with the police",
+      "characters": ["james"],
+      "context": {
+        "location": "Police Station",
+        "mood": "professional",
+        "timeOfDay": "morning"
+      },
+      "onEnter": [
+        { "type": "set", "target": "flags.police_ally", "value": true },
+        { "type": "add", "target": "character.james.relationship", "value": 30 }
+      ]
+    },
+    {
+      "id": "story_safe_house",
+      "type": "story",
+      "description": "The storage unit leads to an address on the outskirts of town. A small cabin, lights on inside. Eleanor is alive—but she's not alone.",
+      "beat": "Finding Eleanor's hiding place",
+      "characters": [],
+      "context": {
+        "location": "Remote Cabin",
+        "mood": "suspenseful",
+        "timeOfDay": "night"
+      },
+      "onEnter": [
+        { "type": "set", "target": "flags.found_safe_house", "value": true }
+      ]
+    },
+    {
+      "id": "story_victoria_confrontation",
+      "type": "story",
+      "description": "Victoria's mask finally slips. She admits she knew Eleanor planned to expose the family but claims she only wanted to 'talk sense into her.' Her alibi is crumbling.",
+      "beat": "The matriarch is cornered",
+      "characters": ["victoria"],
+      "context": {
+        "location": "Ashworth Mansion - Study",
+        "mood": "climactic",
+        "timeOfDay": "night"
+      },
+      "onEnter": [
+        { "type": "add", "target": "character.victoria.relationship", "value": -30 }
+      ]
+    },
+    {
+      "id": "branch_final",
+      "type": "branch",
+      "description": "The truth emerges, but the outcome depends on what you've uncovered and who you've allied with.",
+      "conditions": [
+        {
+          "targetNodeId": "ending_justice",
+          "conditions": [
+            { "type": "flag", "target": "police_ally", "operator": "==", "value": true },
+            { "type": "resource", "target": "evidence", "operator": ">=", "value": 5 }
+          ]
+        },
+        {
+          "targetNodeId": "ending_escape",
+          "conditions": [
+            { "type": "flag", "target": "found_safe_house", "operator": "==", "value": true },
+            { "type": "relationship", "target": "catherine", "operator": ">=", "value": 30 }
+          ]
+        },
+        {
+          "targetNodeId": "ending_buried",
+          "conditions": [
+            { "type": "relationship", "target": "victoria", "operator": ">=", "value": 0 }
+          ]
+        },
+        {
+          "targetNodeId": "ending_cold_case",
+          "isDefault": true,
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "id": "ending_justice",
+      "type": "ending",
+      "endingType": "good",
+      "title": "Justice Served",
+      "description": "With Harlow's backing and your evidence, the Ashworths face prosecution. Eleanor testifies, and the family's crimes are exposed. Your reputation soars.",
+      "epilogue": "The Ashworth fortune crumbles, but Eleanor is free. She sends you a letter months later: 'Thank you for believing the truth mattered.' Your office phone rings more often now. Justice, it seems, is good for business.",
+      "context": {
+        "location": "Courtroom",
+        "mood": "triumphant",
+        "timeOfDay": "morning"
+      }
+    },
+    {
+      "id": "ending_escape",
+      "type": "ending",
+      "endingType": "neutral",
+      "title": "A New Beginning",
+      "description": "You help Eleanor disappear properly—new identity, new life. Catherine joins her. The Ashworths never face justice, but Eleanor is safe.",
+      "epilogue": "A postcard arrives months later. No return address, just a photo of a coastal town and two words: 'Thank you.' You file it away with your unsolved cases. Some justice comes in small packages.",
+      "context": {
+        "location": "Train Station",
+        "mood": "bittersweet",
+        "timeOfDay": "dawn"
+      }
+    },
+    {
+      "id": "ending_buried",
+      "type": "ending",
+      "endingType": "bad",
+      "title": "Secrets Buried Deep",
+      "description": "Victoria's influence proves too strong. Evidence disappears, witnesses recant. The case is closed—Eleanor officially 'ran away.' You know the truth but can't prove it.",
+      "epilogue": "The check Victoria sends is generous. The threat that accompanies it is not. You cash the check and burn your notes. Some fights aren't worth dying over. But the taste of defeat lingers longer than whiskey.",
+      "context": {
+        "location": "Your Office",
+        "mood": "defeated",
+        "timeOfDay": "night"
+      }
+    },
+    {
+      "id": "ending_cold_case",
+      "type": "ending",
+      "endingType": "neutral",
+      "title": "The Trail Goes Cold",
+      "description": "Without enough evidence or allies, the case stalls. Eleanor remains missing, the family keeps their secrets, and you're left with more questions than answers.",
+      "epilogue": "Years later, you still think about the Ashworth case. The file sits in your drawer, never quite closed. Sometimes mysteries don't have endings—just stopping points.",
+      "context": {
+        "location": "Your Office",
+        "mood": "melancholic",
+        "timeOfDay": "evening"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_mansion_to_meeting",
+      "from": "entry_mansion",
+      "to": "story_victoria_meeting",
+      "choiceType": "agree",
+      "choiceHint": "Follow Victoria inside for a formal interview",
+      "priority": 1
+    },
+    {
+      "id": "e_mansion_to_room",
+      "from": "entry_mansion",
+      "to": "story_eleanor_room",
+      "choiceType": "investigate",
+      "choiceHint": "Request to see Eleanor's room first",
+      "priority": 2
+    },
+    {
+      "id": "e_mansion_to_marcus",
+      "from": "entry_mansion",
+      "to": "story_marcus_nervous",
+      "choiceType": "question",
+      "choiceHint": "Notice Marcus watching from a window and approach him",
+      "priority": 3
+    },
+    {
+      "id": "e_office_to_catherine",
+      "from": "entry_office",
+      "to": "story_catherine_secret",
+      "choiceType": "agree",
+      "choiceHint": "Take the case and hear what Catherine knows",
+      "priority": 1
+    },
+    {
+      "id": "e_office_to_harlow",
+      "from": "entry_office",
+      "to": "story_harlow_encounter",
+      "choiceType": "investigate",
+      "choiceHint": "Visit the police station to check official records first",
+      "priority": 2
+    },
+    {
+      "id": "e_office_to_mansion",
+      "from": "entry_office",
+      "to": "story_victoria_meeting",
+      "choiceType": "confront",
+      "choiceHint": "Go directly to the Ashworth mansion",
+      "priority": 3
+    },
+    {
+      "id": "e_meeting_to_room",
+      "from": "story_victoria_meeting",
+      "to": "story_eleanor_room",
+      "choiceType": "investigate",
+      "choiceHint": "Ask to examine Eleanor's personal quarters",
+      "priority": 1
+    },
+    {
+      "id": "e_meeting_to_marcus",
+      "from": "story_victoria_meeting",
+      "to": "story_marcus_nervous",
+      "choiceType": "question",
+      "choiceHint": "Request to speak with other family members",
+      "priority": 2
+    },
+    {
+      "id": "e_meeting_to_confrontation",
+      "from": "story_victoria_meeting",
+      "to": "story_victoria_confrontation",
+      "choiceType": "confront",
+      "choiceHint": "Press Victoria on inconsistencies in her story",
+      "priority": 3,
+      "conditions": [
+        { "type": "flag", "target": "found_diary", "operator": "==", "value": true }
+      ],
+      "effects": [
+        { "type": "add", "target": "character.victoria.relationship", "value": -20 }
+      ]
+    },
+    {
+      "id": "e_room_investigate",
+      "from": "story_eleanor_room",
+      "to": "story_find_diary",
+      "choiceType": "investigate",
+      "choiceHint": "Check the loose floorboard by the window",
+      "priority": 1
+    },
+    {
+      "id": "e_room_to_marcus",
+      "from": "story_eleanor_room",
+      "to": "story_marcus_nervous",
+      "choiceType": "leave",
+      "choiceHint": "Leave to find other family members",
+      "priority": 2
+    },
+    {
+      "id": "e_room_to_harlow",
+      "from": "story_eleanor_room",
+      "to": "story_harlow_encounter",
+      "choiceType": "question",
+      "choiceHint": "Call the police detective handling the case",
+      "priority": 3
+    },
+    {
+      "id": "e_diary_to_catherine",
+      "from": "story_find_diary",
+      "to": "story_catherine_secret",
+      "choiceType": "investigate",
+      "choiceHint": "Track down Catherine Mills mentioned in the diary",
+      "priority": 1
+    },
+    {
+      "id": "e_diary_to_marcus",
+      "from": "story_find_diary",
+      "to": "story_marcus_nervous",
+      "choiceType": "confront",
+      "choiceHint": "Confront Marcus about the diary's accusations",
+      "priority": 2
+    },
+    {
+      "id": "e_diary_to_victoria",
+      "from": "story_find_diary",
+      "to": "story_victoria_confrontation",
+      "choiceType": "confront",
+      "choiceHint": "Confront Victoria with Eleanor's words",
+      "priority": 3
+    },
+    {
+      "id": "e_marcus_press",
+      "from": "story_marcus_nervous",
+      "to": "story_marcus_breaks",
+      "choiceType": "confront",
+      "choiceHint": "Press Marcus hard until he breaks",
+      "priority": 1,
+      "effects": [
+        { "type": "add", "target": "player.reputation", "value": -10 }
+      ]
+    },
+    {
+      "id": "e_marcus_sympathize",
+      "from": "story_marcus_nervous",
+      "to": "story_marcus_breaks",
+      "choiceType": "comfort",
+      "choiceHint": "Show understanding and let him confide in you",
+      "priority": 2,
+      "effects": [
+        { "type": "add", "target": "character.marcus.relationship", "value": 20 }
+      ]
+    },
+    {
+      "id": "e_marcus_leave",
+      "from": "story_marcus_nervous",
+      "to": "story_harlow_encounter",
+      "choiceType": "leave",
+      "choiceHint": "Leave and report suspicious behavior to police",
+      "priority": 3
+    },
+    {
+      "id": "e_marcus_breaks_to_safe",
+      "from": "story_marcus_breaks",
+      "to": "story_safe_house",
+      "choiceType": "investigate",
+      "choiceHint": "Follow the lead to Eleanor's hiding place",
+      "priority": 1
+    },
+    {
+      "id": "e_marcus_breaks_to_victoria",
+      "from": "story_marcus_breaks",
+      "to": "story_victoria_confrontation",
+      "choiceType": "confront",
+      "choiceHint": "Confront Victoria with Marcus's confession",
+      "priority": 2
+    },
+    {
+      "id": "e_marcus_breaks_to_harlow",
+      "from": "story_marcus_breaks",
+      "to": "story_harlow_alliance",
+      "choiceType": "agree",
+      "choiceHint": "Take the evidence to Detective Harlow",
+      "priority": 3
+    },
+    {
+      "id": "e_catherine_to_safe",
+      "from": "story_catherine_secret",
+      "to": "story_safe_house",
+      "choiceType": "investigate",
+      "choiceHint": "Use the key to find the storage unit",
+      "priority": 1
+    },
+    {
+      "id": "e_catherine_to_harlow",
+      "from": "story_catherine_secret",
+      "to": "story_harlow_encounter",
+      "choiceType": "question",
+      "choiceHint": "Verify this information with the police first",
+      "priority": 2
+    },
+    {
+      "id": "e_catherine_to_victoria",
+      "from": "story_catherine_secret",
+      "to": "story_victoria_confrontation",
+      "choiceType": "confront",
+      "choiceHint": "Confront Victoria with the photographs",
+      "priority": 3
+    },
+    {
+      "id": "e_harlow_cooperate",
+      "from": "story_harlow_encounter",
+      "to": "story_harlow_alliance",
+      "choiceType": "agree",
+      "choiceHint": "Offer to share information and work together",
+      "priority": 1
+    },
+    {
+      "id": "e_harlow_defy",
+      "from": "story_harlow_encounter",
+      "to": "story_marcus_nervous",
+      "choiceType": "refuse",
+      "choiceHint": "Refuse to share and continue independently",
+      "priority": 2,
+      "effects": [
+        { "type": "add", "target": "character.james.relationship", "value": -20 }
+      ]
+    },
+    {
+      "id": "e_harlow_negotiate",
+      "from": "story_harlow_encounter",
+      "to": "story_catherine_secret",
+      "choiceType": "deflect",
+      "choiceHint": "Suggest you each pursue different leads",
+      "priority": 3
+    },
+    {
+      "id": "e_alliance_to_safe",
+      "from": "story_harlow_alliance",
+      "to": "story_safe_house",
+      "choiceType": "investigate",
+      "choiceHint": "Pool resources to track Eleanor's location",
+      "priority": 1
+    },
+    {
+      "id": "e_alliance_to_victoria",
+      "from": "story_harlow_alliance",
+      "to": "story_victoria_confrontation",
+      "choiceType": "confront",
+      "choiceHint": "Bring Victoria in for formal questioning",
+      "priority": 2
+    },
+    {
+      "id": "e_alliance_to_marcus",
+      "from": "story_harlow_alliance",
+      "to": "story_marcus_nervous",
+      "choiceType": "question",
+      "choiceHint": "Interview other family members together",
+      "priority": 3
+    },
+    {
+      "id": "e_safe_to_final",
+      "from": "story_safe_house",
+      "to": "branch_final",
+      "choiceType": "agree",
+      "choiceHint": "Help Eleanor escape with a new identity",
+      "priority": 1
+    },
+    {
+      "id": "e_safe_to_final_2",
+      "from": "story_safe_house",
+      "to": "branch_final",
+      "choiceType": "confront",
+      "choiceHint": "Convince Eleanor to testify against her family",
+      "priority": 2
+    },
+    {
+      "id": "e_safe_to_final_3",
+      "from": "story_safe_house",
+      "to": "branch_final",
+      "choiceType": "refuse",
+      "choiceHint": "Report Eleanor's location to Victoria",
+      "priority": 3,
+      "effects": [
+        { "type": "add", "target": "character.victoria.relationship", "value": 50 },
+        { "type": "add", "target": "character.catherine.relationship", "value": -50 }
+      ]
+    },
+    {
+      "id": "e_victoria_to_final",
+      "from": "story_victoria_confrontation",
+      "to": "branch_final",
+      "choiceType": "confront",
+      "choiceHint": "Gather evidence and prepare for prosecution",
+      "priority": 1
+    },
+    {
+      "id": "e_victoria_to_final_2",
+      "from": "story_victoria_confrontation",
+      "to": "branch_final",
+      "choiceType": "deflect",
+      "choiceHint": "Accept Victoria's offer to 'make this go away'",
+      "priority": 2,
+      "effects": [
+        { "type": "add", "target": "character.victoria.relationship", "value": 30 },
+        { "type": "set", "target": "flags.victoria_threat", "value": true }
+      ]
+    },
+    {
+      "id": "e_victoria_to_safe",
+      "from": "story_victoria_confrontation",
+      "to": "story_safe_house",
+      "choiceType": "investigate",
+      "choiceHint": "Use the confrontation to buy time and search for Eleanor",
+      "priority": 3
+    }
+  ]
+}
