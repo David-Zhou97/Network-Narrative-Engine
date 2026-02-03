@@ -40,14 +40,47 @@ export class StoryGeneratorService {
   ): Promise<GeneratedGraph> {
     const fullConfig = { ...DEFAULT_CONFIG, ...config };
 
-    // Generate characters first
-    const characters = await this.generateCharacters(input);
+    console.log(`[StoryGenerator] Starting story generation for: "${input.title}"`);
+    console.log(`[StoryGenerator] Config:`, JSON.stringify(fullConfig));
 
-    // Generate world state
-    const worldState = await this.generateWorldState(input, characters);
+    // Step 1: Generate characters
+    console.log('[StoryGenerator] Step 1/3: Generating characters...');
+    let characters: GeneratedCharacter[];
+    try {
+      characters = await this.generateCharacters(input);
+      console.log(`[StoryGenerator] Generated ${characters.length} characters`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[StoryGenerator] Character generation failed:', message);
+      throw new Error(`Character generation failed: ${message}`);
+    }
 
-    // Generate the narrative graph structure
-    const { nodes, edges } = await this.generateGraphStructure(input, characters, worldState, fullConfig);
+    // Step 2: Generate world state
+    console.log('[StoryGenerator] Step 2/3: Generating world state...');
+    let worldState: GeneratedWorldState;
+    try {
+      worldState = await this.generateWorldState(input, characters);
+      console.log(`[StoryGenerator] Generated world state with ${Object.keys(worldState.player || {}).length} player attributes, ${Object.keys(worldState.flags || {}).length} flags, ${Object.keys(worldState.resources || {}).length} resources`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[StoryGenerator] World state generation failed:', message);
+      throw new Error(`World state generation failed: ${message}`);
+    }
+
+    // Step 3: Generate the narrative graph structure
+    console.log('[StoryGenerator] Step 3/3: Generating graph structure...');
+    let nodes: GeneratedNode[];
+    let edges: GeneratedEdge[];
+    try {
+      const result = await this.generateGraphStructure(input, characters, worldState, fullConfig);
+      nodes = result.nodes;
+      edges = result.edges;
+      console.log(`[StoryGenerator] Generated ${nodes.length} nodes and ${edges.length} edges`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[StoryGenerator] Graph structure generation failed:', message);
+      throw new Error(`Graph structure generation failed: ${message}`);
+    }
 
     // Create the complete graph
     const graph: GeneratedGraph = {
@@ -67,7 +100,11 @@ export class StoryGeneratorService {
 
     // Validate and add warnings
     graph.warnings = this.validateGraph(graph);
+    if (graph.warnings.length > 0) {
+      console.warn('[StoryGenerator] Validation warnings:', graph.warnings);
+    }
 
+    console.log(`[StoryGenerator] Story generation complete for: "${input.title}"`);
     return graph;
   }
 
