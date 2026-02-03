@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { GameProvider, useGame } from './contexts/GameContext';
 import {
   TitleScreen,
+  SavedGamesScreen,
   StorySelectScreen,
   GameScreen,
   EndingScreen,
@@ -27,6 +28,18 @@ function AppContent(): React.ReactElement {
             transition={{ duration: 0.3 }}
           >
             <TitleScreen />
+          </motion.div>
+        )}
+
+        {currentScreen === 'saved-games' && (
+          <motion.div
+            key="saved-games"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <SavedGamesScreen />
           </motion.div>
         )}
 

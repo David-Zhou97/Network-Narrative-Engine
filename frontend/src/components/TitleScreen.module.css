@@ -114,6 +114,38 @@
   background: var(--color-bg-tertiary);
 }
 
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.apiStatus {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.statusOnline,
+.statusOffline {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.statusOnline {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+}
+
+.statusOffline {
+  background: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+}
+
 .version {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);

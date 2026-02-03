@@ -6,15 +6,14 @@ import type { NarrativeDefinition } from '../types';
 import styles from './TitleScreen.module.css';
 
 export function TitleScreen(): React.ReactElement {
-  const { loadStory, savedGames, setCurrentScreen } = useGame();
+  const { loadStory, savedGames, setCurrentScreen, isApiAvailable } = useGame();
 
   const handleNewStory = () => {
     loadStory(detectiveStory as NarrativeDefinition);
   };
 
   const handleContinue = () => {
-    // For now, just load the story and go to story select
-    loadStory(detectiveStory as NarrativeDefinition);
+    setCurrentScreen('saved-games');
   };
 
   return (
@@ -65,14 +64,20 @@ export function TitleScreen(): React.ReactElement {
           </button>
         </motion.div>
 
-        <motion.p
-          className={styles.version}
+        <motion.div
+          className={styles.footer}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
         >
-          Powered by Network Narrative Engine
-        </motion.p>
+          <div className={styles.apiStatus}>
+            <span className={isApiAvailable ? styles.statusOnline : styles.statusOffline} />
+            <span>{isApiAvailable ? 'AI Enabled' : 'Offline Mode'}</span>
+          </div>
+          <p className={styles.version}>
+            Powered by Network Narrative Engine
+          </p>
+        </motion.div>
       </motion.div>
 
       <div className={styles.backgroundDecoration}>

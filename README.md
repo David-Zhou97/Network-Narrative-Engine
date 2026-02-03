@@ -31,7 +31,60 @@ The Network Narrative Engine combines structured narrative graphs with AI-genera
 npm install network-narrative-engine
 ```
 
-## Quick Start
+## Running the Full Application
+
+The project includes a complete frontend and backend for playing stories.
+
+### Prerequisites
+
+- Node.js 18+
+- npm
+
+### Quick Start (Full App)
+
+1. **Clone and install dependencies:**
+
+```bash
+git clone https://github.com/David-Zhou97/Network-Narrative-Engine.git
+cd Network-Narrative-Engine
+npm run install:all
+```
+
+2. **Configure environment:**
+
+```bash
+cp .env.example .env
+# Edit .env and add your ANTHROPIC_API_KEY
+```
+
+3. **Start the development servers:**
+
+```bash
+# Terminal 1: Start the backend API server
+npm run dev:server
+
+# Terminal 2: Start the frontend
+npm run dev:frontend
+```
+
+4. **Open the game:**
+
+Navigate to `http://localhost:5173` in your browser.
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ANTHROPIC_API_KEY` | Your Anthropic API key | Required for AI |
+| `ANTHROPIC_MODEL` | Claude model to use | `claude-sonnet-4-20250514` |
+| `PORT` | Server port | `3001` |
+| `CORS_ORIGIN` | Frontend URL | `http://localhost:5173` |
+
+### Running Without AI
+
+The game works without an API key in "offline mode" using mock responses. The title screen shows your connection status (AI Enabled/Offline Mode).
+
+## Library Quick Start
 
 ```typescript
 import { NarrativeEngine, DialogueGenerator, AnthropicClient } from 'network-narrative-engine';
@@ -147,20 +200,31 @@ Define your story as JSON:
 ## Architecture
 
 ```
-src/
-├── types/           # TypeScript interfaces
-│   ├── narrative.ts # Core narrative types
-│   └── ai.ts        # AI integration types
-├── engine/          # Core engine components
-│   ├── NarrativeEngine.ts   # Main orchestrator
-│   ├── GraphManager.ts      # Graph operations
-│   ├── StateManager.ts      # World state
-│   └── ChoiceResolver.ts    # Choice handling
-├── ai/              # AI integration
-│   ├── DialogueGenerator.ts # Turn generation
-│   ├── AnthropicClient.ts   # Claude API
-│   └── prompts/             # Prompt templates
-└── examples/        # Example narratives
+Network-Narrative-Engine/
+├── src/                    # Core engine library
+│   ├── types/              # TypeScript interfaces
+│   ├── engine/             # Core components
+│   │   ├── NarrativeEngine.ts   # Main orchestrator
+│   │   ├── GraphManager.ts      # Graph operations
+│   │   ├── StateManager.ts      # World state
+│   │   └── ChoiceResolver.ts    # Choice handling
+│   ├── ai/                 # AI integration
+│   │   ├── DialogueGenerator.ts # Turn generation
+│   │   ├── AnthropicClient.ts   # Claude API
+│   │   └── prompts/             # Prompt templates
+│   └── __tests__/          # Unit tests
+├── server/                 # Backend API server
+│   └── src/
+│       ├── index.ts        # Express server
+│       ├── routes/         # API endpoints
+│       └── services/       # AI service
+├── frontend/               # React frontend
+│   └── src/
+│       ├── components/     # UI components
+│       ├── contexts/       # Game state context
+│       └── api/            # Backend API client
+└── examples/               # Example stories
+    └── detective-mystery.json
 ```
 
 ## Node Types
