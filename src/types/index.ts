@@ -4,3 +4,4 @@
 
 export * from './narrative';
 export * from './ai';
+export * from './storyCreation';

@@ -29,7 +29,8 @@ export type GameScreen =
   | 'story-select'
   | 'playing'
   | 'ending'
-  | 'settings';
+  | 'settings'
+  | 'create-story';
 
 export interface SavedGame {
   id: string;
