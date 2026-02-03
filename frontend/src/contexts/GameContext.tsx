@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { NarrativeEngine } from '../../../src/engine/NarrativeEngine';
 import { DialogueGenerator, MockAIClient } from '../../../src/ai/DialogueGenerator';
+import { apiClient } from '../api/client';
 import type {
   NarrativeDefinition,
   NarrativeMetadata,
@@ -15,6 +16,9 @@ import type {
 import type { TurnResult, EndingResult } from '../../../src/types/narrative';
 
 interface GameContextValue {
+  // API status
+  isApiAvailable: boolean;
+
   // Screen navigation
   currentScreen: GameScreen;
   setCurrentScreen: (screen: GameScreen) => void;
@@ -91,6 +95,9 @@ export function GameProvider({ children }: GameProviderProps): React.ReactElemen
   // Refs
   const engineRef = useRef<NarrativeEngine | null>(null);
 
+  // API status
+  const [isApiAvailable, setIsApiAvailable] = useState(false);
+
   // Screen state
   const [currentScreen, setCurrentScreen] = useState<GameScreen>('title');
 
@@ -122,8 +129,19 @@ export function GameProvider({ children }: GameProviderProps): React.ReactElemen
   // Settings
   const [settings, setSettings] = useState<GameSettings>(defaultSettings);
 
-  // Load saved games and settings from localStorage on mount
+  // Check API availability and load saved data on mount
   useEffect(() => {
+    // Check if backend API is available
+    apiClient.checkHealth().then((available) => {
+      setIsApiAvailable(available);
+      if (available) {
+        console.log('Backend API connected - AI generation enabled');
+      } else {
+        console.log('Backend API not available - using mock responses');
+      }
+    });
+
+    // Load saved games and settings
     try {
       const savedGamesData = localStorage.getItem('narrative-saved-games');
       if (savedGamesData) {
@@ -162,11 +180,11 @@ export function GameProvider({ children }: GameProviderProps): React.ReactElemen
     try {
       const engine = new NarrativeEngine(story);
 
-      // Set up AI provider (using mock for now)
-      const mockClient = new MockAIClient();
+      // Set up AI provider - use API client if available, otherwise mock
+      const client = isApiAvailable ? apiClient : new MockAIClient();
       const dialogueGenerator = new DialogueGenerator(
         { temperature: 0.8, maxTokens: 1024 },
-        mockClient
+        client
       );
       engine.setAIProvider(dialogueGenerator);
 
@@ -179,7 +197,7 @@ export function GameProvider({ children }: GameProviderProps): React.ReactElemen
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load story');
     }
-  }, []);
+  }, [isApiAvailable]);
 
   // Unload the current story
   const unloadStory = useCallback(() => {
@@ -304,6 +322,7 @@ export function GameProvider({ children }: GameProviderProps): React.ReactElemen
     if (!engine || !storyMetadata) return;
 
     const sessionData = engine.exportSession();
+    const currentState = engine.getWorldState();
     const save: SavedGame = {
       id: `save-${Date.now()}`,
       narrativeId: storyMetadata.id,
@@ -311,6 +330,7 @@ export function GameProvider({ children }: GameProviderProps): React.ReactElemen
       sessionData,
       savedAt: Date.now(),
       turnCount: turnHistory.length,
+      currentNodeId: currentState?.currentNodeId,
     };
 
     setSavedGames(prev => [save, ...prev.slice(0, 9)]); // Keep max 10 saves
@@ -328,10 +348,51 @@ export function GameProvider({ children }: GameProviderProps): React.ReactElemen
       return;
     }
 
-    // For now, we'd need the story to be loaded first
-    // This is a simplified implementation
-    setError('Load game functionality requires story data');
-  }, [savedGames]);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Parse the saved session data
+      const savedSession = JSON.parse(save.sessionData);
+
+      // Ensure the story is loaded
+      if (!loadedStory || storyMetadata?.id !== save.narrativeId) {
+        // For now we only support the detective story
+        // In a full implementation, this would fetch the story by ID
+        const detectiveStory = await import('../../../examples/detective-mystery.json');
+        loadStory(detectiveStory.default as NarrativeDefinition);
+      }
+
+      // Wait a tick for the engine to be set up
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      const engine = engineRef.current;
+      if (!engine) {
+        throw new Error('Failed to initialize game engine');
+      }
+
+      // Resume the saved session
+      engine.resumeSession(savedSession);
+      setSession(savedSession);
+
+      // Get the current turn
+      const turn = await engine.getCurrentTurn();
+      setCurrentTurn(turn);
+      setTurnHistory([turn]); // Start fresh history display
+
+      setCurrentScreen('playing');
+
+      if (turn.isEnding && turn.ending) {
+        setEndingResult(turn.ending);
+        setCurrentScreen('ending');
+      }
+    } catch (err) {
+      console.error('Failed to load game:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load saved game');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [savedGames, loadedStory, storyMetadata, loadStory]);
 
   // Delete save
   const deleteSave = useCallback((saveId: string) => {
@@ -344,6 +405,7 @@ export function GameProvider({ children }: GameProviderProps): React.ReactElemen
   }, []);
 
   const value: GameContextValue = {
+    isApiAvailable,
     currentScreen,
     setCurrentScreen,
     loadedStory,

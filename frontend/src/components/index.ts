@@ -1,4 +1,5 @@
 export { TitleScreen } from './TitleScreen';
+export { SavedGamesScreen } from './SavedGamesScreen';
 export { StorySelectScreen } from './StorySelectScreen';
 export { GameScreen } from './GameScreen';
 export { GameHeader } from './GameHeader';

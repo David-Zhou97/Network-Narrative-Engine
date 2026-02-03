@@ -21,6 +21,7 @@ export type {
 // Frontend-specific types
 export type GameScreen =
   | 'title'
+  | 'saved-games'
   | 'story-select'
   | 'playing'
   | 'ending'
