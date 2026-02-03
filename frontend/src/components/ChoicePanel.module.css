@@ -1,0 +1,237 @@
+.container {
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+  padding: var(--spacing-md);
+  padding-bottom: calc(var(--spacing-md) + var(--safe-area-bottom));
+  position: relative;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.choiceList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.choiceWrapper {
+  width: 100%;
+}
+
+.choiceButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-bg-card);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  text-align: left;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.choiceButton::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  transition: background var(--transition-fast);
+}
+
+/* Tone-based styling */
+.tonePositive {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.tonePositive::before {
+  background: var(--color-choice-positive);
+}
+
+.tonePositive:hover {
+  border-color: var(--color-choice-positive);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.toneNeutral {
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.toneNeutral::before {
+  background: var(--color-choice-neutral);
+}
+
+.toneNeutral:hover {
+  border-color: var(--color-choice-neutral);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.toneNegative {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.toneNegative::before {
+  background: var(--color-choice-negative);
+}
+
+.toneNegative:hover {
+  border-color: var(--color-choice-negative);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.choiceButton:active {
+  transform: scale(0.98);
+}
+
+.choiceButton:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.choiceNumber {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.tonePositive .choiceNumber {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--color-choice-positive);
+}
+
+.toneNeutral .choiceNumber {
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--color-choice-neutral);
+}
+
+.toneNegative .choiceNumber {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--color-choice-negative);
+}
+
+.choiceContent {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.choiceText {
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  margin: 0;
+  line-height: var(--line-height-tight);
+}
+
+.toneBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+}
+
+.customizeButton {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.customizeButton:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-accent-primary);
+}
+
+/* Placeholder for unavailable choices */
+.choicePlaceholder {
+  padding: var(--spacing-md);
+  background: var(--color-bg-card);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.choicePlaceholder span {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* Loading overlay */
+.loadingOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  background: rgba(26, 26, 46, 0.9);
+  z-index: 10;
+}
+
+.loadingOverlay span {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Font size variations */
+:global(.font-small) .choiceText {
+  font-size: var(--font-size-sm);
+}
+
+:global(.font-large) .choiceText {
+  font-size: var(--font-size-lg);
+}

@@ -1,0 +1,237 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  padding-top: calc(var(--spacing-sm) + var(--safe-area-top));
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.menuButton,
+.statsButton {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.menuButton:hover,
+.statsButton:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.titleArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.turnCount {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* Overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--color-bg-overlay);
+  z-index: 100;
+}
+
+/* Menu Panel */
+.menuPanel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 85vw;
+  background: var(--color-bg-secondary);
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--safe-area-top);
+}
+
+.menuHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.menuHeader h2 {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin: 0;
+}
+
+.menuHeader button {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+}
+
+.menuNav {
+  flex: 1;
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  transition: background var(--transition-fast);
+}
+
+.menuItem:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.menuItem svg {
+  color: var(--color-text-secondary);
+}
+
+/* Stats Panel */
+.statsPanel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 70vh;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--safe-area-bottom);
+}
+
+.statsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.statsHeader h2 {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin: 0;
+}
+
+.statsHeader button {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+}
+
+.statsContent {
+  padding: var(--spacing-md);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.statItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.statLabel {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.statValue {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.statSection {
+  margin-top: var(--spacing-md);
+}
+
+.statSection h3 {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 var(--spacing-sm);
+}
+
+.relationshipItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) 0;
+  font-size: var(--font-size-sm);
+}
+
+.relationshipItem span:first-child {
+  flex: 1;
+  color: var(--color-text-secondary);
+}
+
+.relationshipBar {
+  width: 80px;
+  height: 8px;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.relationshipFill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width var(--transition-normal);
+}
+
+.relationshipItem span:last-child {
+  width: 30px;
+  text-align: right;
+  color: var(--color-text-primary);
+  font-weight: 500;
+}

@@ -1,0 +1,74 @@
+.container {
+  position: relative;
+}
+
+.narrationBox {
+  background: linear-gradient(
+    135deg,
+    var(--color-bg-card) 0%,
+    var(--color-bg-secondary) 100%
+  );
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  position: relative;
+  overflow: hidden;
+}
+
+.narrationBox::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--color-accent-primary),
+    var(--color-accent-secondary)
+  );
+}
+
+.text {
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-lg);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.cursor {
+  display: inline-block;
+  animation: blink 0.8s ease-in-out infinite;
+  color: var(--color-accent-primary);
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.tapHint {
+  position: absolute;
+  bottom: -24px;
+  right: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin: 0;
+  animation: fadeInOut 2s ease-in-out infinite;
+}
+
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* Font size variations */
+:global(.font-small) .text {
+  font-size: var(--font-size-base);
+}
+
+:global(.font-large) .text {
+  font-size: var(--font-size-xl);
+}
