@@ -3,6 +3,8 @@ node_modules/
 
 # Build output
 dist/
+src/**/*.js
+src/**/*.d.ts
 
 # Environment
 .env
