@@ -1,0 +1,57 @@
+{
+  "name": "network-narrative-engine",
+  "version": "0.1.0",
+  "description": "A TypeScript library for creating branching interactive narratives with AI-powered dialogue generation",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "narrative",
+    "interactive-fiction",
+    "branching-narrative",
+    "storytelling",
+    "dialogue",
+    "ai",
+    "claude",
+    "chatbot",
+    "game-engine"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/David-Zhou97/Network-Narrative-Engine"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0"
+  },
+  "peerDependencies": {
+    "@anthropic-ai/sdk": ">=0.10.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
