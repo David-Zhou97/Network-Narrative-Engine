@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { GameProvider, useGame } from './contexts/GameContext';
 import {
   TitleScreen,
+  StoryMarketplace,
   SavedGamesScreen,
   StorySelectScreen,
   GameScreen,
@@ -28,6 +29,18 @@ function AppContent(): React.ReactElement {
             transition={{ duration: 0.3 }}
           >
             <TitleScreen />
+          </motion.div>
+        )}
+
+        {currentScreen === 'marketplace' && (
+          <motion.div
+            key="marketplace"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <StoryMarketplace />
           </motion.div>
         )}
 

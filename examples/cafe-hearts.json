@@ -1,0 +1,239 @@
+{
+  "metadata": {
+    "id": "cafe-hearts-001",
+    "title": "The Starlight Cafe",
+    "description": "You inherit your grandmother's struggling cafe in a charming coastal town. Between perfecting recipes, navigating small-town drama, and unexpected romance, you'll discover that the best things in life are made with love.",
+    "author": "Network Narrative Engine",
+    "version": "1.0.0",
+    "tags": ["romance", "slice-of-life", "cozy", "drama"]
+  },
+  "characters": [
+    {
+      "id": "alex",
+      "name": "Alex Rivera",
+      "description": "A talented but burned-out food critic who came to town to escape the city. Cynical exterior, romantic heart.",
+      "personality": "Witty, guarded, secretly kind.",
+      "traits": ["intellectual", "wounded", "passionate", "growth"],
+      "initialRelationship": 5
+    },
+    {
+      "id": "sam",
+      "name": "Sam Chen",
+      "description": "Your childhood friend who never left town. Runs the local bookshop. Has always been there for you.",
+      "personality": "Warm, reliable, quietly devoted.",
+      "traits": ["loyal", "patient", "creative", "afraid"],
+      "initialRelationship": 30
+    },
+    {
+      "id": "maya",
+      "name": "Maya Santos",
+      "description": "The rival cafe owner's daughter. Competitive but fair, hiding her own dreams beneath family expectations.",
+      "personality": "Ambitious, conflicted, surprisingly vulnerable.",
+      "traits": ["driven", "proud", "lonely", "talented"],
+      "initialRelationship": -10
+    }
+  ],
+  "worldState": {
+    "player": {
+      "confidence": { "type": "number", "default": 40, "min": 0, "max": 100 },
+      "culinary_skill": { "type": "number", "default": 30, "min": 0, "max": 100 }
+    },
+    "flags": {
+      "found_recipe": { "type": "boolean", "default": false },
+      "festival_entered": { "type": "boolean", "default": false },
+      "alex_opened_up": { "type": "boolean", "default": false },
+      "sam_confessed": { "type": "boolean", "default": false },
+      "maya_friendship": { "type": "boolean", "default": false }
+    },
+    "resources": {
+      "cafe_reputation": { "type": "number", "default": 30 },
+      "savings": { "type": "number", "default": 50 }
+    }
+  },
+  "nodes": [
+    {
+      "id": "entry_return",
+      "type": "entry",
+      "title": "Coming Home",
+      "preview": "Return to your grandmother's cafe after years away.",
+      "description": "The Starlight Cafe looks smaller than you remember, but the smell of coffee and sea salt brings back every memory. A letter from your grandmother waits on the counter, along with her recipes and a request: 'Make this place shine again.'",
+      "characters": [],
+      "context": { "location": "Starlight Cafe", "mood": "nostalgic", "timeOfDay": "morning" }
+    },
+    {
+      "id": "entry_crisis",
+      "type": "entry",
+      "title": "The Competition",
+      "preview": "Arrive to find a rival cafe has opened across the street.",
+      "description": "A sleek new cafe gleams across the street—'Santos Coffee House.' Maya Santos catches your eye through the window, raises her cup in mock salute. Sam appears at your elbow. 'Yeah, we need to talk about that.'",
+      "characters": ["sam", "maya"],
+      "context": { "location": "Main Street", "mood": "challenging", "timeOfDay": "afternoon" }
+    },
+    {
+      "id": "story_first_day",
+      "type": "story",
+      "description": "Your first day running the cafe is chaos—burned coffee, wrong orders, one customer who stays to help. Alex Rivera, food critic, somehow ends up behind your counter teaching you proper espresso technique.",
+      "beat": "An unexpected helper",
+      "characters": ["alex"],
+      "context": { "location": "Starlight Cafe", "mood": "chaotic", "timeOfDay": "morning" },
+      "onEnter": [{ "type": "add", "target": "player.culinary_skill", "value": 10 }]
+    },
+    {
+      "id": "story_sam_support",
+      "type": "story",
+      "description": "Sam brings over a 'cafe survival kit'—their grandmother's tea blends, a good luck charm, and memories of summers spent here together. 'I always hoped you'd come back.'",
+      "beat": "Old friends reunited",
+      "characters": ["sam"],
+      "context": { "location": "Starlight Cafe - Evening", "mood": "warm", "timeOfDay": "sunset" },
+      "onEnter": [{ "type": "add", "target": "character.sam.relationship", "value": 10 }]
+    },
+    {
+      "id": "story_recipe_discovery",
+      "type": "story",
+      "description": "Hidden in your grandmother's recipe box: a legendary pastry recipe that once made Starlight famous. The instructions are faded, but the memory of that taste lingers.",
+      "beat": "Finding grandmother's secret",
+      "characters": [],
+      "context": { "location": "Cafe Kitchen", "mood": "discovery", "timeOfDay": "late night" },
+      "onEnter": [
+        { "type": "set", "target": "flags.found_recipe", "value": true },
+        { "type": "add", "target": "player.culinary_skill", "value": 15 }
+      ]
+    },
+    {
+      "id": "story_alex_past",
+      "type": "story",
+      "description": "Rain drives everyone inside. Alex stays after closing, finally sharing why they fled the city—a career built on harsh reviews, a restaurant closed because of their words, guilt that follows like a shadow.",
+      "beat": "Vulnerability shared",
+      "characters": ["alex"],
+      "context": { "location": "Starlight Cafe", "mood": "intimate", "timeOfDay": "rainy evening" },
+      "onEnter": [
+        { "type": "set", "target": "flags.alex_opened_up", "value": true },
+        { "type": "add", "target": "character.alex.relationship", "value": 20 }
+      ]
+    },
+    {
+      "id": "story_maya_truth",
+      "type": "story",
+      "description": "You find Maya alone in her cafe after hours, crying. The pressure from her family, the expectation to crush all competition—it's not what she wanted. She wanted to be a painter.",
+      "beat": "Understanding the rival",
+      "characters": ["maya"],
+      "context": { "location": "Santos Coffee House", "mood": "vulnerable", "timeOfDay": "late night" },
+      "onEnter": [
+        { "type": "set", "target": "flags.maya_friendship", "value": true },
+        { "type": "add", "target": "character.maya.relationship", "value": 25 }
+      ]
+    },
+    {
+      "id": "story_festival_announce",
+      "type": "story",
+      "description": "The town's annual Coastal Food Festival is announced. First prize: enough money to save your cafe and a feature in the regional magazine. Maya's already entered.",
+      "beat": "The stakes are raised",
+      "characters": ["sam"],
+      "context": { "location": "Town Square", "mood": "exciting", "timeOfDay": "morning" },
+      "onEnter": [{ "type": "set", "target": "flags.festival_entered", "value": true }]
+    },
+    {
+      "id": "story_sam_confession",
+      "type": "story",
+      "description": "Walking on the beach, Sam stops. 'I need to tell you something I should have said years ago. Before you left. I've always—' The words hang in the salt air.",
+      "beat": "A love long hidden",
+      "characters": ["sam"],
+      "context": { "location": "Moonlit Beach", "mood": "romantic", "timeOfDay": "night" },
+      "onEnter": [{ "type": "set", "target": "flags.sam_confessed", "value": true }]
+    },
+    {
+      "id": "branch_final",
+      "type": "branch",
+      "description": "The festival arrives. Your heart and future hang in the balance.",
+      "conditions": [
+        {
+          "targetNodeId": "ending_starlight",
+          "conditions": [
+            { "type": "flag", "target": "found_recipe", "operator": "==", "value": true },
+            { "type": "player", "target": "culinary_skill", "operator": ">=", "value": 60 }
+          ]
+        },
+        {
+          "targetNodeId": "ending_love_alex",
+          "conditions": [
+            { "type": "flag", "target": "alex_opened_up", "operator": "==", "value": true },
+            { "type": "relationship", "target": "alex", "operator": ">=", "value": 40 }
+          ]
+        },
+        {
+          "targetNodeId": "ending_love_sam",
+          "conditions": [
+            { "type": "flag", "target": "sam_confessed", "operator": "==", "value": true },
+            { "type": "relationship", "target": "sam", "operator": ">=", "value": 50 }
+          ]
+        },
+        { "targetNodeId": "ending_new_chapter", "isDefault": true, "conditions": [] }
+      ]
+    },
+    {
+      "id": "ending_starlight",
+      "type": "ending",
+      "endingType": "good",
+      "title": "Grandmother's Legacy",
+      "description": "Your recreation of the legendary pastry wins the festival. Cameras flash, the crowd cheers, and somewhere, you feel your grandmother smiling.",
+      "epilogue": "Starlight Cafe becomes a destination. You expand, hire help, and finally have time for the life you put on hold. Whether that life includes Alex's witty debates, Sam's steady warmth, or new adventures entirely—that's a story still being written.",
+      "context": { "location": "Festival Stage", "mood": "triumphant", "timeOfDay": "golden afternoon" }
+    },
+    {
+      "id": "ending_love_alex",
+      "type": "ending",
+      "endingType": "good",
+      "title": "Second Chances",
+      "description": "You don't win the festival, but you gain something better. Alex's hand finds yours in the crowd. 'I want to help you build something. Together.'",
+      "epilogue": "Alex writes a column about small-town redemption—theirs and the cafe's. The publicity saves Starlight without the prize money. You argue about recipes, laugh over failed experiments, and build a life that tastes like second chances.",
+      "context": { "location": "Starlight Cafe", "mood": "romantic", "timeOfDay": "sunset" }
+    },
+    {
+      "id": "ending_love_sam",
+      "type": "ending",
+      "endingType": "good",
+      "title": "Where the Heart Lives",
+      "description": "Sam's confession echoes in your heart as you watch them cheer from the crowd. The festival ends, but your real prize was always here.",
+      "epilogue": "The bookshop and cafe become twin hearts of the town. You and Sam build a life between coffee and stories, between the past you shared and the future you're writing together. Some love stories begin in childhood and never end.",
+      "context": { "location": "Moonlit Beach", "mood": "tender", "timeOfDay": "starlit night" }
+    },
+    {
+      "id": "ending_new_chapter",
+      "type": "ending",
+      "endingType": "neutral",
+      "title": "The Journey Continues",
+      "description": "The festival doesn't go as planned, but you've built something real—a community, friendships, a home. The cafe survives, modest but beloved.",
+      "epilogue": "Life isn't a competition with clear winners. You keep the lights on at Starlight, keep learning, keep growing. Romance may come, or purpose may be enough. Your grandmother's legacy lives in every cup you serve.",
+      "context": { "location": "Starlight Cafe", "mood": "peaceful", "timeOfDay": "quiet morning" }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "from": "entry_return", "to": "story_first_day", "choiceType": "agree", "choiceHint": "Open the cafe tomorrow", "priority": 1 },
+    { "id": "e2", "from": "entry_return", "to": "story_sam_support", "choiceType": "question", "choiceHint": "Call your old friend Sam", "priority": 2 },
+    { "id": "e3", "from": "entry_return", "to": "story_recipe_discovery", "choiceType": "investigate", "choiceHint": "Explore grandmother's things", "priority": 3 },
+    { "id": "e4", "from": "entry_crisis", "to": "story_first_day", "choiceType": "confront", "choiceHint": "Show them what you can do", "priority": 1 },
+    { "id": "e5", "from": "entry_crisis", "to": "story_maya_truth", "choiceType": "question", "choiceHint": "Try talking to Maya", "priority": 2 },
+    { "id": "e6", "from": "entry_crisis", "to": "story_sam_support", "choiceType": "comfort", "choiceHint": "Lean on Sam for support", "priority": 3 },
+    { "id": "e7", "from": "story_first_day", "to": "story_alex_past", "choiceType": "question", "choiceHint": "Get to know your helper", "priority": 1, "effects": [{ "type": "add", "target": "character.alex.relationship", "value": 10 }] },
+    { "id": "e8", "from": "story_first_day", "to": "story_recipe_discovery", "choiceType": "investigate", "choiceHint": "Focus on improving recipes", "priority": 2 },
+    { "id": "e9", "from": "story_first_day", "to": "story_sam_support", "choiceType": "agree", "choiceHint": "Call Sam to celebrate surviving", "priority": 3 },
+    { "id": "e10", "from": "story_sam_support", "to": "story_sam_confession", "choiceType": "comfort", "choiceHint": "Spend more time with Sam", "priority": 1, "effects": [{ "type": "add", "target": "character.sam.relationship", "value": 15 }] },
+    { "id": "e11", "from": "story_sam_support", "to": "story_festival_announce", "choiceType": "investigate", "choiceHint": "Focus on saving the cafe", "priority": 2 },
+    { "id": "e12", "from": "story_sam_support", "to": "story_first_day", "choiceType": "agree", "choiceHint": "Get back to work", "priority": 3 },
+    { "id": "e13", "from": "story_recipe_discovery", "to": "story_festival_announce", "choiceType": "agree", "choiceHint": "This could save the cafe", "priority": 1 },
+    { "id": "e14", "from": "story_recipe_discovery", "to": "story_alex_past", "choiceType": "question", "choiceHint": "Ask Alex to help perfect it", "priority": 2 },
+    { "id": "e15", "from": "story_recipe_discovery", "to": "story_sam_support", "choiceType": "comfort", "choiceHint": "Share this moment with Sam", "priority": 3 },
+    { "id": "e16", "from": "story_alex_past", "to": "story_festival_announce", "choiceType": "agree", "choiceHint": "We can both start fresh", "priority": 1, "effects": [{ "type": "add", "target": "character.alex.relationship", "value": 10 }] },
+    { "id": "e17", "from": "story_alex_past", "to": "branch_final", "choiceType": "comfort", "choiceHint": "Stay close through the night", "priority": 2, "effects": [{ "type": "add", "target": "character.alex.relationship", "value": 15 }] },
+    { "id": "e18", "from": "story_alex_past", "to": "story_recipe_discovery", "choiceType": "investigate", "choiceHint": "Ask for their culinary advice", "priority": 3 },
+    { "id": "e19", "from": "story_maya_truth", "to": "story_festival_announce", "choiceType": "agree", "choiceHint": "Maybe we don't have to be rivals", "priority": 1, "effects": [{ "type": "add", "target": "character.maya.relationship", "value": 15 }] },
+    { "id": "e20", "from": "story_maya_truth", "to": "branch_final", "choiceType": "comfort", "choiceHint": "Help her pursue her art", "priority": 2 },
+    { "id": "e21", "from": "story_maya_truth", "to": "story_alex_past", "choiceType": "question", "choiceHint": "Maybe Alex can help her too", "priority": 3 },
+    { "id": "e22", "from": "story_festival_announce", "to": "story_recipe_discovery", "choiceType": "investigate", "choiceHint": "Perfect grandmother's recipe", "priority": 1, "conditions": [{ "type": "flag", "target": "found_recipe", "operator": "==", "value": false }] },
+    { "id": "e23", "from": "story_festival_announce", "to": "branch_final", "choiceType": "agree", "choiceHint": "Enter the festival", "priority": 2, "effects": [{ "type": "add", "target": "player.confidence", "value": 15 }] },
+    { "id": "e24", "from": "story_festival_announce", "to": "story_sam_confession", "choiceType": "comfort", "choiceHint": "Ask Sam to help you prepare", "priority": 3 },
+    { "id": "e25", "from": "story_sam_confession", "to": "branch_final", "choiceType": "agree", "choiceHint": "I feel the same way", "priority": 1, "effects": [{ "type": "add", "target": "character.sam.relationship", "value": 25 }] },
+    { "id": "e26", "from": "story_sam_confession", "to": "branch_final", "choiceType": "deflect", "choiceHint": "I need time to think", "priority": 2 },
+    { "id": "e27", "from": "story_sam_confession", "to": "branch_final", "choiceType": "refuse", "choiceHint": "I care for you, but as a friend", "priority": 3 }
+  ]
+}

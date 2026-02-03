@@ -18,9 +18,13 @@ export type {
   EndingResult,
 } from '../../../src/types/narrative';
 
+// Import PlayerChoice for local use
+import type { PlayerChoice } from '../../../src/types/narrative';
+
 // Frontend-specific types
 export type GameScreen =
   | 'title'
+  | 'marketplace'
   | 'saved-games'
   | 'story-select'
   | 'playing'
