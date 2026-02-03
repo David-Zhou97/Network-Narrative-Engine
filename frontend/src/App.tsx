@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { GameProvider, useGame } from './contexts/GameContext';
 import {
@@ -10,12 +10,35 @@ import {
   EndingScreen,
   SettingsScreen,
 } from './components';
+import { NarrativeEngine } from './components/NarrativeEngine';
+import { addUserStory, generateUserStoryThumbnail, type StoryInfo } from './data/storyRegistry';
+import type { GeneratedGraph } from '../../src/types/storyCreation';
 
 function AppContent(): React.ReactElement {
-  const { currentScreen, settings } = useGame();
+  const { currentScreen, settings, setCurrentScreen } = useGame();
 
   // Apply font size class to root
   const fontSizeClass = `font-${settings.fontSize}`;
+
+  // Handle published story
+  const handleStoryPublished = useCallback((graph: GeneratedGraph, shortDescription: string) => {
+    // Add to user stories registry
+    const storyInfo: StoryInfo = {
+      id: graph.metadata.id,
+      title: graph.metadata.title,
+      description: graph.metadata.description,
+      shortDescription: shortDescription,
+      author: graph.metadata.author || 'You',
+      tags: graph.metadata.tags,
+      thumbnail: generateUserStoryThumbnail(graph.metadata.title, graph.metadata.tags),
+      difficulty: 'medium',
+      estimatedTime: '20-30 min',
+    };
+    addUserStory(storyInfo);
+
+    // Navigate to marketplace
+    setCurrentScreen('marketplace');
+  }, [setCurrentScreen]);
 
   return (
     <div className={fontSizeClass}>
@@ -102,6 +125,21 @@ function AppContent(): React.ReactElement {
             transition={{ duration: 0.3 }}
           >
             <SettingsScreen />
+          </motion.div>
+        )}
+
+        {currentScreen === 'create-story' && (
+          <motion.div
+            key="create-story"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <NarrativeEngine
+              onBack={() => setCurrentScreen('marketplace')}
+              onPublished={() => setCurrentScreen('marketplace')}
+            />
           </motion.div>
         )}
       </AnimatePresence>

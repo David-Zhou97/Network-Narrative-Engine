@@ -237,3 +237,67 @@ export function getFeaturedStories(): StoryInfo[] {
 export function getStoriesByTag(tag: string): StoryInfo[] {
   return storyRegistry.filter(story => story.tags.includes(tag.toLowerCase()));
 }
+
+// User-created stories storage (session-based for now)
+let userCreatedStories: StoryInfo[] = [];
+
+export function addUserStory(story: StoryInfo): void {
+  // Remove if exists (update)
+  userCreatedStories = userCreatedStories.filter(s => s.id !== story.id);
+  userCreatedStories.push(story);
+}
+
+export function removeUserStory(id: string): void {
+  userCreatedStories = userCreatedStories.filter(s => s.id !== id);
+}
+
+export function getUserStories(): StoryInfo[] {
+  return [...userCreatedStories];
+}
+
+export function getAllStories(): StoryInfo[] {
+  return [...storyRegistry, ...userCreatedStories];
+}
+
+export function getAllStoriesByTag(tag: string): StoryInfo[] {
+  return getAllStories().filter(story => story.tags.includes(tag.toLowerCase()));
+}
+
+export function getAllFeaturedStories(): StoryInfo[] {
+  return getAllStories().filter(story => story.featured);
+}
+
+// Generate a placeholder thumbnail for user stories
+export function generateUserStoryThumbnail(title: string, tags: string[]): string {
+  const primaryTag = tags[0] || 'adventure';
+  const colors: Record<string, [string, string]> = {
+    mystery: ['#1a1a2e', '#7c3aed'],
+    horror: ['#1a0a1a', '#ef4444'],
+    'sci-fi': ['#0a0a15', '#06b6d4'],
+    fantasy: ['#1a1520', '#f59e0b'],
+    romance: ['#2d1f1a', '#ec4899'],
+    cyberpunk: ['#0a1015', '#a78bfa'],
+    thriller: ['#1a1a2e', '#ef4444'],
+    adventure: ['#1a2520', '#10b981'],
+    drama: ['#1a1a2e', '#6366f1'],
+    default: ['#1a1a2e', '#7c3aed'],
+  };
+
+  const [bg, accent] = colors[primaryTag] || colors.default;
+  const initials = title.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+  const svg = `<svg viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="user-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:${bg}"/>
+        <stop offset="100%" style="stop-color:#0d0d1a"/>
+      </linearGradient>
+    </defs>
+    <rect width="200" height="150" fill="url(#user-bg)"/>
+    <circle cx="100" cy="65" r="35" fill="${accent}" opacity="0.2"/>
+    <text x="100" y="75" fill="${accent}" font-size="28" font-weight="bold" text-anchor="middle" font-family="sans-serif">${initials}</text>
+    <text x="100" y="135" fill="#6b6b80" font-size="10" text-anchor="middle" font-family="sans-serif">USER CREATED</text>
+  </svg>`;
+
+  return `data:image/svg+xml,${encodeURIComponent(svg.trim())}`;
+}

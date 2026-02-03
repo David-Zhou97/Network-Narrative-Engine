@@ -1,0 +1,378 @@
+/* NodeEditor and EdgeEditor Modal Styles */
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal {
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  background: linear-gradient(180deg, #1a1a2e 0%, #0d0d1a 100%);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.header h2 {
+  color: #fff;
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.closeButton:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+/* Form Elements */
+.formGroup {
+  margin-bottom: 1rem;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.label {
+  display: block;
+  color: #d1d5db;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  background: rgba(30, 30, 50, 0.8);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.95rem;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: #6b7280;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.select {
+  cursor: pointer;
+}
+
+.select option {
+  background: #1a1a2e;
+}
+
+.hint {
+  display: block;
+  color: #6b7280;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+/* Sections */
+.section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(124, 58, 237, 0.2);
+}
+
+.section h3 {
+  color: #a78bfa;
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.sectionHint {
+  color: #6b7280;
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+}
+
+/* Characters */
+.characterGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.5rem;
+}
+
+.characterCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(30, 30, 50, 0.5);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.characterCheckbox:hover {
+  border-color: rgba(124, 58, 237, 0.4);
+}
+
+.characterCheckbox input {
+  accent-color: #7c3aed;
+}
+
+.characterName {
+  color: #d1d5db;
+  font-size: 0.9rem;
+}
+
+.characterId {
+  color: #6b7280;
+  font-size: 0.75rem;
+  margin-left: auto;
+  font-family: monospace;
+}
+
+/* Effects List */
+.effectsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.effectItem {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(30, 30, 50, 0.5);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.effectType {
+  color: #a78bfa;
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.effectTarget {
+  color: #d1d5db;
+  font-family: monospace;
+}
+
+.effectValue {
+  color: #10b981;
+  margin-left: auto;
+}
+
+/* Route Info (for edges) */
+.routeInfo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(30, 30, 50, 0.5);
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.routeNode {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.routeLabel {
+  font-size: 0.7rem;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.routeValue {
+  color: #d1d5db;
+  font-size: 0.95rem;
+}
+
+.routeArrow {
+  color: #a78bfa;
+  font-size: 1.5rem;
+}
+
+/* Footer */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(124, 58, 237, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.cancelButton,
+.saveButton,
+.deleteButton {
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.cancelButton {
+  background: none;
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  color: #9ca3af;
+}
+
+.cancelButton:hover {
+  border-color: rgba(124, 58, 237, 0.5);
+  color: #d1d5db;
+}
+
+.saveButton {
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+  border: none;
+  color: #fff;
+}
+
+.saveButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+}
+
+.deleteButton {
+  background: none;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.deleteButton:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* Delete Confirmation */
+.deleteConfirm {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.deleteConfirm span {
+  color: #f87171;
+  font-size: 0.95rem;
+}
+
+.confirmYes,
+.confirmNo {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  border: none;
+}
+
+.confirmYes {
+  background: #ef4444;
+  color: #fff;
+  margin-left: auto;
+}
+
+.confirmYes:hover {
+  background: #dc2626;
+}
+
+.confirmNo {
+  background: rgba(100, 100, 100, 0.3);
+  color: #d1d5db;
+}
+
+.confirmNo:hover {
+  background: rgba(100, 100, 100, 0.5);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .modal {
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+
+  .routeInfo {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .routeArrow {
+    transform: rotate(90deg);
+  }
+}

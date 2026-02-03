@@ -1,0 +1,479 @@
+/* GraphEditor Styles */
+
+.container {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #0d0d1a 0%, #1a1a2e 100%);
+  color: #e0e0e0;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: #a78bfa;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.backButton:hover {
+  background: rgba(167, 139, 250, 0.1);
+}
+
+.headerCenter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.title {
+  font-size: 1.3rem;
+  color: #fff;
+  margin: 0;
+}
+
+.viewToggle {
+  display: flex;
+  gap: 0.25rem;
+  background: rgba(30, 30, 50, 0.8);
+  padding: 0.25rem;
+  border-radius: 8px;
+}
+
+.viewButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.viewButton:hover {
+  color: #fff;
+}
+
+.viewButton.active {
+  background: rgba(124, 58, 237, 0.3);
+  color: #fff;
+}
+
+.publishButton {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.publishButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+/* Content Layout */
+.content {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+}
+
+/* Stats Panel */
+.statsPanel {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 2rem;
+  padding: 1rem 2rem;
+  background: rgba(30, 30, 50, 0.5);
+  border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.statValue {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #a78bfa;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+/* Graph Container */
+.graphContainer {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at center, rgba(124, 58, 237, 0.03) 0%, transparent 70%),
+    linear-gradient(rgba(124, 58, 237, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 58, 237, 0.05) 1px, transparent 1px);
+  background-size: 100% 100%, 30px 30px, 30px 30px;
+  cursor: grab;
+}
+
+.graphContainer:active {
+  cursor: grabbing;
+}
+
+.graphSvg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transform-origin: top left;
+}
+
+.graphSvg g {
+  pointer-events: auto;
+}
+
+.edgePath {
+  transition: stroke 0.2s, stroke-width 0.2s;
+}
+
+.edgeLabel {
+  pointer-events: none;
+  user-select: none;
+}
+
+.nodesContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+}
+
+/* Nodes */
+.node {
+  position: absolute;
+  width: 200px;
+  min-height: 80px;
+  background: rgba(30, 30, 50, 0.95);
+  border: 2px solid;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: move;
+  transition: box-shadow 0.2s;
+  user-select: none;
+}
+
+.node:hover {
+  z-index: 10;
+}
+
+.nodeSelected {
+  z-index: 20;
+}
+
+.nodeType {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.nodeContent {
+  padding: 0.5rem 0.75rem;
+}
+
+.nodeTitle {
+  font-weight: 600;
+  color: #fff;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nodeDescription {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  line-height: 1.3;
+}
+
+.nodeCharacters {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem 0.5rem;
+  flex-wrap: wrap;
+}
+
+.characterBadge {
+  font-size: 0.65rem;
+  background: rgba(124, 58, 237, 0.2);
+  color: #a78bfa;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+/* Zoom Controls */
+.zoomControls {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  background: rgba(30, 30, 50, 0.9);
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(124, 58, 237, 0.3);
+}
+
+.zoomControls button {
+  width: 32px;
+  height: 32px;
+  background: rgba(124, 58, 237, 0.2);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.zoomControls button:hover {
+  background: rgba(124, 58, 237, 0.4);
+}
+
+.zoomControls span {
+  min-width: 50px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.85rem;
+}
+
+/* List View */
+.listContainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.listSection {
+  background: rgba(30, 30, 50, 0.5);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.listSection h3 {
+  padding: 1rem;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.3);
+  color: #a78bfa;
+  font-size: 0.9rem;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+}
+
+.nodeList,
+.edgeList {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.listItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.1);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.listItem:hover {
+  background: rgba(124, 58, 237, 0.1);
+}
+
+.listItemSelected {
+  background: rgba(124, 58, 237, 0.2);
+}
+
+.listItemType {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #fff;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.listItemTitle {
+  font-weight: 500;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.listItemId {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-family: monospace;
+}
+
+.edgeRoute {
+  font-size: 0.8rem;
+  color: #a78bfa;
+  font-family: monospace;
+}
+
+.edgeChoice {
+  color: #d1d5db;
+  font-size: 0.85rem;
+}
+
+.edgeConflict {
+  font-size: 0.75rem;
+  color: #f59e0b;
+  font-style: italic;
+}
+
+/* Details Panel */
+.detailsPanel {
+  background: rgba(30, 30, 50, 0.5);
+  border-left: 1px solid rgba(124, 58, 237, 0.2);
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.detailsPanel h3 {
+  color: #a78bfa;
+  margin: 0 0 1rem;
+  font-size: 1rem;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.detailRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detailLabel {
+  font-size: 0.7rem;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.detailValue {
+  color: #d1d5db;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.noSelection {
+  color: #6b7280;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.editButton {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(124, 58, 237, 0.2);
+  border: 1px solid rgba(124, 58, 237, 0.4);
+  border-radius: 8px;
+  color: #a78bfa;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.editButton:hover {
+  background: rgba(124, 58, 237, 0.3);
+  border-color: #7c3aed;
+}
+
+/* Warnings */
+.warnings {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(124, 58, 237, 0.2);
+}
+
+.warnings h4 {
+  color: #f59e0b;
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+}
+
+.warning {
+  font-size: 0.8rem;
+  color: #fbbf24;
+  padding: 0.5rem;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .content {
+    grid-template-columns: 1fr;
+  }
+
+  .detailsPanel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    border-left: none;
+    border-top: 1px solid rgba(124, 58, 237, 0.3);
+    z-index: 100;
+  }
+
+  .listContainer {
+    grid-template-columns: 1fr;
+  }
+}
