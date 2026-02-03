@@ -82,7 +82,7 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
       case 'basics':
         return title.trim() && plot.trim() && beginningScenario.trim() && tags.length > 0;
       case 'world':
-        return worldSettings.setting.trim() && worldSettings.mood.trim() && worldSettings.themes.length > 0;
+        return worldSettings.setting.trim() && worldSettings.mood.trim();
       case 'characters':
         return characters.length > 0 && characters.every(c => c.name.trim() && c.description.trim());
       case 'endings':
@@ -377,12 +377,13 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
             </div>
 
             <div className={styles.formGroup}>
-              <label className={styles.label}>Key Themes * (what moral questions should players face?)</label>
-              <div className={styles.themeInput}>
+              <label className={styles.label}>Key Themes (optional - what moral questions should players face?)</label>
+              <div className={styles.themeInputRow}>
                 <input
                   type="text"
                   className={styles.input}
-                  placeholder="Add a theme (e.g., 'loyalty vs truth', 'power corrupts')"
+                  placeholder="e.g., 'loyalty vs truth', 'power corrupts'"
+                  id="theme-input"
                   onKeyDown={e => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -391,6 +392,19 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
                     }
                   }}
                 />
+                <button
+                  type="button"
+                  className={styles.addThemeButton}
+                  onClick={() => {
+                    const input = document.getElementById('theme-input') as HTMLInputElement;
+                    if (input && input.value.trim()) {
+                      addTheme(input.value);
+                      input.value = '';
+                    }
+                  }}
+                >
+                  Add
+                </button>
               </div>
               <div className={styles.themeList}>
                 {worldSettings.themes.map(theme => (

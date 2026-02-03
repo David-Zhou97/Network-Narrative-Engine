@@ -97,23 +97,39 @@ export class APIClient {
     input: StoryCreationInput,
     config?: Partial<GraphGenerationConfig>
   ): Promise<StoryGenerationResponse> {
-    const response = await fetch(`${this.baseUrl}/api/generate-story`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ input, config }),
-    });
+    try {
+      const response = await fetch(`${this.baseUrl}/api/generate-story`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ input, config }),
+      });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        // Prefer the detailed message over the generic error
+        return {
+          success: false,
+          error: error.message || error.error || `API error: ${response.status}`,
+        };
+      }
+
+      return response.json();
+    } catch (err) {
+      // Handle network errors
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      if (message.includes('fetch') || message.includes('network') || message.includes('Failed to fetch')) {
+        return {
+          success: false,
+          error: 'Unable to connect to the server. Please ensure the backend is running (npm run dev:server).',
+        };
+      }
       return {
         success: false,
-        error: error.error || error.message || `API error: ${response.status}`,
+        error: message,
       };
     }
-
-    return response.json();
   }
 
   async regenerateNode(
