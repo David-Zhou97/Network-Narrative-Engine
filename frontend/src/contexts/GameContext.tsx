@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { NarrativeEngine } from '../../../src/engine/NarrativeEngine';
 import { DialogueGenerator, MockAIClient } from '../../../src/ai/DialogueGenerator';
+import { DEFAULT_AI_CONFIG } from '../../../src/types/ai';
 import { apiClient } from '../api/client';
 import type {
   NarrativeDefinition,
@@ -15,6 +16,24 @@ import type {
 } from '../types';
 import type { TurnResult, EndingResult } from '../../../src/types/narrative';
 
+// Story imports
+import detectiveStory from '../../../examples/detective-mystery.json';
+import hauntedStory from '../../../examples/haunted-manor.json';
+import starshipStory from '../../../examples/starship-odyssey.json';
+import dragonStory from '../../../examples/dragon-heir.json';
+import cafeStory from '../../../examples/cafe-hearts.json';
+import cyberStory from '../../../examples/cyber-runner.json';
+
+// Story registry for loading by ID
+const storyFiles: Record<string, NarrativeDefinition> = {
+  'detective-mystery-001': detectiveStory as NarrativeDefinition,
+  'haunted-manor-001': hauntedStory as NarrativeDefinition,
+  'starship-odyssey-001': starshipStory as NarrativeDefinition,
+  'dragon-heir-001': dragonStory as NarrativeDefinition,
+  'cafe-hearts-001': cafeStory as NarrativeDefinition,
+  'cyber-runner-001': cyberStory as NarrativeDefinition,
+};
+
 interface GameContextValue {
   // API status
   isApiAvailable: boolean;
@@ -27,6 +46,7 @@ interface GameContextValue {
   loadedStory: NarrativeDefinition | null;
   storyMetadata: NarrativeMetadata | null;
   loadStory: (story: NarrativeDefinition) => void;
+  loadStoryById: (storyId: string) => Promise<void>;
   unloadStory: () => void;
 
   // Scenario selection
@@ -183,7 +203,7 @@ export function GameProvider({ children }: GameProviderProps): React.ReactElemen
       // Set up AI provider - use API client if available, otherwise mock
       const client = isApiAvailable ? apiClient : new MockAIClient();
       const dialogueGenerator = new DialogueGenerator(
-        { temperature: 0.8, maxTokens: 1024 },
+        { ...DEFAULT_AI_CONFIG, temperature: 0.8, maxTokens: 1024 },
         client
       );
       engine.setAIProvider(dialogueGenerator);
@@ -198,6 +218,28 @@ export function GameProvider({ children }: GameProviderProps): React.ReactElemen
       setError(err instanceof Error ? err.message : 'Failed to load story');
     }
   }, [isApiAvailable]);
+
+  // Load a story by ID (from marketplace)
+  const loadStoryById = useCallback(async (storyId: string) => {
+    const storyData = storyFiles[storyId];
+    if (!storyData) {
+      setError(`Story not found: ${storyId}`);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Small delay for UI feedback
+      await new Promise(resolve => setTimeout(resolve, 300));
+      loadStory(storyData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load story');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [loadStory]);
 
   // Unload the current story
   const unloadStory = useCallback(() => {
@@ -357,10 +399,11 @@ export function GameProvider({ children }: GameProviderProps): React.ReactElemen
 
       // Ensure the story is loaded
       if (!loadedStory || storyMetadata?.id !== save.narrativeId) {
-        // For now we only support the detective story
-        // In a full implementation, this would fetch the story by ID
-        const detectiveStory = await import('../../../examples/detective-mystery.json');
-        loadStory(detectiveStory.default as NarrativeDefinition);
+        const storyData = storyFiles[save.narrativeId];
+        if (!storyData) {
+          throw new Error(`Story not found: ${save.narrativeId}`);
+        }
+        loadStory(storyData);
       }
 
       // Wait a tick for the engine to be set up
@@ -411,6 +454,7 @@ export function GameProvider({ children }: GameProviderProps): React.ReactElemen
     loadedStory,
     storyMetadata,
     loadStory,
+    loadStoryById,
     unloadStory,
     availableScenarios,
     selectScenario,

@@ -1,0 +1,219 @@
+{
+  "metadata": {
+    "id": "dragon-heir-001",
+    "title": "The Dragon's Heir",
+    "description": "In the kingdom of Valdris, you discover you carry dragon blood—a power that could save or destroy the realm. With civil war looming and ancient enemies awakening, your choices will shape the fate of millions.",
+    "author": "Network Narrative Engine",
+    "version": "1.0.0",
+    "tags": ["fantasy", "dragons", "royalty", "war"]
+  },
+  "characters": [
+    {
+      "id": "lyra",
+      "name": "Princess Lyra",
+      "description": "Heir to the throne, torn between duty and justice. She sees potential in you.",
+      "personality": "Noble, conflicted, secretly rebellious.",
+      "traits": ["royal", "idealistic", "brave", "burdened"],
+      "initialRelationship": 10
+    },
+    {
+      "id": "kael",
+      "name": "Kael the Shadowblade",
+      "description": "Leader of the rebellion, fights for the common folk. Distrusts all nobility.",
+      "personality": "Charismatic, ruthless when necessary, haunted by loss.",
+      "traits": ["rebel", "tactical", "passionate", "scarred"],
+      "initialRelationship": -5
+    },
+    {
+      "id": "vorn",
+      "name": "Archdrake Vorn",
+      "description": "Ancient dragon who has watched empires rise and fall. He remembers the old pacts.",
+      "personality": "Patient, cryptic, amused by mortal concerns.",
+      "traits": ["ancient", "powerful", "wise", "enigmatic"],
+      "initialRelationship": 0
+    }
+  ],
+  "worldState": {
+    "player": {
+      "dragonfire": { "type": "number", "default": 10, "min": 0, "max": 100 },
+      "influence": { "type": "number", "default": 30, "min": 0, "max": 100 }
+    },
+    "flags": {
+      "awakened_power": { "type": "boolean", "default": false },
+      "met_vorn": { "type": "boolean", "default": false },
+      "sided_crown": { "type": "boolean", "default": false },
+      "sided_rebellion": { "type": "boolean", "default": false },
+      "ancient_pact": { "type": "boolean", "default": false }
+    },
+    "resources": {
+      "allies": { "type": "number", "default": 1 },
+      "kingdom_stability": { "type": "number", "default": 40 }
+    }
+  },
+  "nodes": [
+    {
+      "id": "entry_village",
+      "type": "entry",
+      "title": "The Burning Village",
+      "preview": "Your power awakens when soldiers attack your home.",
+      "description": "Royal soldiers torch your village, hunting 'traitors.' As flames consume your home, something ancient stirs in your blood. Fire bends away from you. The soldiers freeze in terror.",
+      "characters": [],
+      "context": { "location": "Ashford Village", "mood": "desperate", "timeOfDay": "night" },
+      "onEnter": [{ "type": "set", "target": "flags.awakened_power", "value": true }]
+    },
+    {
+      "id": "entry_castle",
+      "type": "entry",
+      "title": "The Royal Summons",
+      "preview": "Discovered as a noble's secret child, you're brought to court.",
+      "description": "Guards escort you to the throne room. Princess Lyra studies you with curious eyes. 'So you're the one,' she murmurs. 'The bloodline we thought extinct.'",
+      "characters": ["lyra"],
+      "context": { "location": "Valdris Castle", "mood": "tense", "timeOfDay": "morning" }
+    },
+    {
+      "id": "story_power_awakening",
+      "type": "story",
+      "description": "In dreams, you soar over mountains. A voice like thunder speaks: 'Child of the old pact, your fire calls to me. Seek the Obsidian Peak.'",
+      "beat": "The dragon's call",
+      "characters": [],
+      "context": { "location": "Dream", "mood": "mystical", "timeOfDay": "midnight" },
+      "onEnter": [{ "type": "add", "target": "player.dragonfire", "value": 20 }]
+    },
+    {
+      "id": "story_lyra_plea",
+      "type": "story",
+      "description": "Lyra finds you alone. 'My father's gone mad with fear. He'll burn the kingdom to ash hunting dragon-blooded. But with your power, we could force peace.'",
+      "beat": "The princess's proposition",
+      "characters": ["lyra"],
+      "context": { "location": "Castle Gardens", "mood": "secretive", "timeOfDay": "dusk" }
+    },
+    {
+      "id": "story_kael_offer",
+      "type": "story",
+      "description": "The Shadowblade intercepts you. 'The crown will use you then discard you. Join us. Your fire could free thousands from tyranny.'",
+      "beat": "The rebel's offer",
+      "characters": ["kael"],
+      "context": { "location": "Hidden Tunnels", "mood": "conspiratorial", "timeOfDay": "night" }
+    },
+    {
+      "id": "story_vorn_meeting",
+      "type": "story",
+      "description": "Atop Obsidian Peak, ancient Vorn waits. His scales shimmer with starlight. 'Little flame,' he rumbles, 'your ancestors promised to guard this land. The pact remains unbroken.'",
+      "beat": "Meeting the ancient one",
+      "characters": ["vorn"],
+      "context": { "location": "Obsidian Peak", "mood": "awe", "timeOfDay": "eternal twilight" },
+      "onEnter": [
+        { "type": "set", "target": "flags.met_vorn", "value": true },
+        { "type": "add", "target": "player.dragonfire", "value": 30 }
+      ]
+    },
+    {
+      "id": "story_battle_choice",
+      "type": "story",
+      "description": "War erupts. Crown forces and rebels clash while ancient darkness stirs in the mountains. Both sides beg for your power. Vorn watches from above.",
+      "beat": "Choosing a side",
+      "characters": ["lyra", "kael"],
+      "context": { "location": "Valdris Plains", "mood": "chaotic", "timeOfDay": "dawn" }
+    },
+    {
+      "id": "story_dark_rising",
+      "type": "story",
+      "description": "The true enemy reveals itself—shadow wyrms, corrupted dragons thought extinct. They care nothing for human politics. Only dragonfire can stop them.",
+      "beat": "The greater threat",
+      "characters": ["vorn"],
+      "context": { "location": "Burning Fields", "mood": "apocalyptic", "timeOfDay": "blood red dawn" },
+      "onEnter": [{ "type": "subtract", "target": "resources.kingdom_stability", "value": 20 }]
+    },
+    {
+      "id": "branch_final",
+      "type": "branch",
+      "description": "The fate of Valdris hangs on your choice.",
+      "conditions": [
+        {
+          "targetNodeId": "ending_unity",
+          "conditions": [
+            { "type": "flag", "target": "ancient_pact", "operator": "==", "value": true },
+            { "type": "player", "target": "dragonfire", "operator": ">=", "value": 60 }
+          ]
+        },
+        {
+          "targetNodeId": "ending_crown",
+          "conditions": [
+            { "type": "flag", "target": "sided_crown", "operator": "==", "value": true },
+            { "type": "relationship", "target": "lyra", "operator": ">=", "value": 30 }
+          ]
+        },
+        {
+          "targetNodeId": "ending_rebellion",
+          "conditions": [
+            { "type": "flag", "target": "sided_rebellion", "operator": "==", "value": true },
+            { "type": "relationship", "target": "kael", "operator": ">=", "value": 30 }
+          ]
+        },
+        { "targetNodeId": "ending_ashes", "isDefault": true, "conditions": [] }
+      ]
+    },
+    {
+      "id": "ending_unity",
+      "type": "ending",
+      "endingType": "good",
+      "title": "Fire and Dawn",
+      "description": "Honoring the ancient pact, you unite humans and dragons against the shadow wyrms. Vorn leads the flight; you ride at his side, fire incarnate.",
+      "epilogue": "Valdris enters a new age. Dragons return as guardians, not legends. Lyra reforms the kingdom while Kael ensures the people's voice is heard. And you? You become the bridge between worlds, the Dragon's Heir in truth.",
+      "context": { "location": "New Valdris", "mood": "triumphant", "timeOfDay": "golden dawn" }
+    },
+    {
+      "id": "ending_crown",
+      "type": "ending",
+      "endingType": "neutral",
+      "title": "The Dragon Queen",
+      "description": "With your power backing the crown, the rebellion ends. Lyra takes the throne with you as her champion and, perhaps, something more.",
+      "epilogue": "Peace comes, but at cost. The common folk whisper of tyranny wrapped in dragon scales. Lyra strives for justice, but change is slow. The shadow wyrms fade, for now. Vorn watches, waiting to see if humans deserve their second chance.",
+      "context": { "location": "Valdris Throne Room", "mood": "bittersweet", "timeOfDay": "coronation dawn" }
+    },
+    {
+      "id": "ending_rebellion",
+      "type": "ending",
+      "endingType": "neutral",
+      "title": "Fire of Freedom",
+      "description": "Your flames shatter the old order. Kael leads the new council, and for the first time, common blood sits in halls of power.",
+      "epilogue": "Revolution always has costs. Noble houses burn, some innocent among them. But schools open in villages that never had them. Lyra vanishes into exile. The shadow wyrms remain a threat, one the new Valdris must face without ancient alliances.",
+      "context": { "location": "People's Council", "mood": "hopeful", "timeOfDay": "new morning" }
+    },
+    {
+      "id": "ending_ashes",
+      "type": "ending",
+      "endingType": "bad",
+      "title": "Kingdom of Ashes",
+      "description": "Divided, Valdris falls. Shadow wyrms feast on the chaos. You survive, but rule only ruins.",
+      "epilogue": "In the wasteland, survivors tell stories of what might have been. A dragon's heir who couldn't unite, a kingdom that burned itself before the enemy arrived. Vorn vanishes east. Perhaps somewhere, somehow, the cycle will begin again.",
+      "context": { "location": "Ruined Valdris", "mood": "tragic", "timeOfDay": "ash-darkened noon" }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "from": "entry_village", "to": "story_power_awakening", "choiceType": "investigate", "choiceHint": "Seek to understand your power", "priority": 1 },
+    { "id": "e2", "from": "entry_village", "to": "story_kael_offer", "choiceType": "agree", "choiceHint": "Flee with the rebel scouts", "priority": 2 },
+    { "id": "e3", "from": "entry_village", "to": "story_lyra_plea", "choiceType": "question", "choiceHint": "Surrender to seek answers", "priority": 3 },
+    { "id": "e4", "from": "entry_castle", "to": "story_lyra_plea", "choiceType": "agree", "choiceHint": "Hear the princess out", "priority": 1 },
+    { "id": "e5", "from": "entry_castle", "to": "story_power_awakening", "choiceType": "investigate", "choiceHint": "Demand to know about your blood", "priority": 2 },
+    { "id": "e6", "from": "entry_castle", "to": "story_kael_offer", "choiceType": "refuse", "choiceHint": "Escape the castle", "priority": 3 },
+    { "id": "e7", "from": "story_power_awakening", "to": "story_vorn_meeting", "choiceType": "investigate", "choiceHint": "Seek the Obsidian Peak", "priority": 1 },
+    { "id": "e8", "from": "story_power_awakening", "to": "story_lyra_plea", "choiceType": "question", "choiceHint": "Ask the crown for guidance", "priority": 2 },
+    { "id": "e9", "from": "story_power_awakening", "to": "story_kael_offer", "choiceType": "agree", "choiceHint": "Find those who oppose the king", "priority": 3 },
+    { "id": "e10", "from": "story_lyra_plea", "to": "story_vorn_meeting", "choiceType": "investigate", "choiceHint": "Seek dragon wisdom first", "priority": 1 },
+    { "id": "e11", "from": "story_lyra_plea", "to": "story_battle_choice", "choiceType": "agree", "choiceHint": "Stand with the princess", "priority": 2, "effects": [{ "type": "set", "target": "flags.sided_crown", "value": true }, { "type": "add", "target": "character.lyra.relationship", "value": 20 }] },
+    { "id": "e12", "from": "story_lyra_plea", "to": "story_kael_offer", "choiceType": "refuse", "choiceHint": "Reject royal manipulation", "priority": 3 },
+    { "id": "e13", "from": "story_kael_offer", "to": "story_vorn_meeting", "choiceType": "investigate", "choiceHint": "Seek power beyond politics", "priority": 1 },
+    { "id": "e14", "from": "story_kael_offer", "to": "story_battle_choice", "choiceType": "agree", "choiceHint": "Join the rebellion", "priority": 2, "effects": [{ "type": "set", "target": "flags.sided_rebellion", "value": true }, { "type": "add", "target": "character.kael.relationship", "value": 20 }] },
+    { "id": "e15", "from": "story_kael_offer", "to": "story_lyra_plea", "choiceType": "refuse", "choiceHint": "Reject the rebellion", "priority": 3 },
+    { "id": "e16", "from": "story_vorn_meeting", "to": "story_dark_rising", "choiceType": "agree", "choiceHint": "Accept the ancient pact", "priority": 1, "effects": [{ "type": "set", "target": "flags.ancient_pact", "value": true }, { "type": "add", "target": "character.vorn.relationship", "value": 30 }] },
+    { "id": "e17", "from": "story_vorn_meeting", "to": "story_battle_choice", "choiceType": "refuse", "choiceHint": "Refuse—this is a human matter", "priority": 2 },
+    { "id": "e18", "from": "story_vorn_meeting", "to": "story_lyra_plea", "choiceType": "question", "choiceHint": "Ask about the royal bloodline", "priority": 3 },
+    { "id": "e19", "from": "story_battle_choice", "to": "story_dark_rising", "choiceType": "investigate", "choiceHint": "Something darker is coming", "priority": 1 },
+    { "id": "e20", "from": "story_battle_choice", "to": "branch_final", "choiceType": "agree", "choiceHint": "Fight for the crown", "priority": 2, "effects": [{ "type": "set", "target": "flags.sided_crown", "value": true }] },
+    { "id": "e21", "from": "story_battle_choice", "to": "branch_final", "choiceType": "confront", "choiceHint": "Fight for the people", "priority": 3, "effects": [{ "type": "set", "target": "flags.sided_rebellion", "value": true }] },
+    { "id": "e22", "from": "story_dark_rising", "to": "branch_final", "choiceType": "agree", "choiceHint": "Unite all against the true enemy", "priority": 1, "effects": [{ "type": "set", "target": "flags.ancient_pact", "value": true }] },
+    { "id": "e23", "from": "story_dark_rising", "to": "branch_final", "choiceType": "confront", "choiceHint": "Face the wyrms alone", "priority": 2 },
+    { "id": "e24", "from": "story_dark_rising", "to": "branch_final", "choiceType": "refuse", "choiceHint": "Let the factions handle it", "priority": 3 }
+  ]
+}

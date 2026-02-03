@@ -1,0 +1,213 @@
+{
+  "metadata": {
+    "id": "starship-odyssey-001",
+    "title": "Starship Odyssey: The Last Frontier",
+    "description": "As captain of the USV Horizon, humanity's last colony ship, you must navigate a dying galaxy. With 10,000 souls in cryosleep depending on you, every decision could mean salvation or extinction.",
+    "author": "Network Narrative Engine",
+    "version": "1.0.0",
+    "tags": ["sci-fi", "space", "survival", "leadership"]
+  },
+  "characters": [
+    {
+      "id": "aria",
+      "name": "ARIA",
+      "description": "The ship's AI, ancient and wise, but hiding secrets about the mission.",
+      "personality": "Calm, logical, occasionally unsettlingly human.",
+      "traits": ["intelligent", "secretive", "protective", "ancient"],
+      "initialRelationship": 20
+    },
+    {
+      "id": "chen",
+      "name": "Dr. Mei Chen",
+      "description": "Chief Science Officer, brilliant but haunted by what she discovered about the galaxy's fate.",
+      "personality": "Driven, ethical, carries heavy knowledge.",
+      "traits": ["genius", "ethical", "burdened", "determined"],
+      "initialRelationship": 15
+    },
+    {
+      "id": "reyes",
+      "name": "Commander Reyes",
+      "description": "Security Chief, a hardened soldier who questions civilian leadership.",
+      "personality": "Pragmatic, protective, distrustful of AI.",
+      "traits": ["military", "suspicious", "loyal", "ruthless"],
+      "initialRelationship": -10
+    }
+  ],
+  "worldState": {
+    "player": {
+      "authority": { "type": "number", "default": 50, "min": 0, "max": 100 },
+      "compassion": { "type": "number", "default": 50, "min": 0, "max": 100 }
+    },
+    "flags": {
+      "knows_truth": { "type": "boolean", "default": false },
+      "alien_contact": { "type": "boolean", "default": false },
+      "mutiny_brewing": { "type": "boolean", "default": false },
+      "aria_trusted": { "type": "boolean", "default": false }
+    },
+    "resources": {
+      "fuel": { "type": "number", "default": 60 },
+      "morale": { "type": "number", "default": 70 },
+      "colonists": { "type": "number", "default": 10000 }
+    }
+  },
+  "nodes": [
+    {
+      "id": "entry_crisis",
+      "type": "entry",
+      "title": "Emergency Awakening",
+      "preview": "Wake to alarms—something has gone terribly wrong.",
+      "description": "Cryosleep shatters. Alarms blare. ARIA's voice cuts through: 'Captain, we have a situation. Navigation failure. We've drifted off course by... significant margin.'",
+      "characters": ["aria"],
+      "context": { "location": "Captain's Cryo Chamber", "mood": "urgent", "timeOfDay": "ship-time 0300" }
+    },
+    {
+      "id": "entry_routine",
+      "type": "entry",
+      "title": "Scheduled Awakening",
+      "preview": "A routine check reveals an unsettling discovery.",
+      "description": "Your scheduled rotation begins normally. But Dr. Chen waits at your pod, face pale. 'Captain, I need to show you something. The long-range scans... they're wrong. Everything is wrong.'",
+      "characters": ["chen"],
+      "context": { "location": "Cryo Bay", "mood": "ominous", "timeOfDay": "ship-time 0800" }
+    },
+    {
+      "id": "story_aria_briefing",
+      "type": "story",
+      "description": "On the bridge, ARIA projects a holographic star map. Where there should be thousands of stars, there are only hundreds. The galaxy is dying faster than anyone predicted.",
+      "beat": "Learning the terrible truth",
+      "characters": ["aria"],
+      "context": { "location": "Bridge", "mood": "devastating", "timeOfDay": "ship-time 0900" },
+      "onEnter": [{ "type": "set", "target": "flags.knows_truth", "value": true }]
+    },
+    {
+      "id": "story_chen_discovery",
+      "type": "story",
+      "description": "Dr. Chen's research reveals the extinction event is artificial. Something is consuming stars. And it's noticed the Horizon.",
+      "beat": "The threat becomes personal",
+      "characters": ["chen"],
+      "context": { "location": "Science Lab", "mood": "terrifying", "timeOfDay": "ship-time 1400" },
+      "onEnter": [{ "type": "add", "target": "resources.morale", "value": -15 }]
+    },
+    {
+      "id": "story_reyes_confrontation",
+      "type": "story",
+      "description": "Commander Reyes corners you. 'The crew is talking. They want answers. If you can't provide them, someone else will have to.'",
+      "beat": "Authority challenged",
+      "characters": ["reyes"],
+      "context": { "location": "Security Office", "mood": "confrontational", "timeOfDay": "ship-time 2100" }
+    },
+    {
+      "id": "story_alien_signal",
+      "type": "story",
+      "description": "ARIA detects a signal—artificial, mathematical, clearly intelligent. It originates from a dying system ahead. Someone else survived.",
+      "beat": "First contact possibility",
+      "characters": ["aria"],
+      "context": { "location": "Communications", "mood": "hopeful", "timeOfDay": "ship-time 0600" },
+      "onEnter": [{ "type": "set", "target": "flags.alien_contact", "value": true }]
+    },
+    {
+      "id": "story_difficult_choice",
+      "type": "story",
+      "description": "The signal leads to a station with 500 alien refugees. Taking them means sacrificing fuel. Leaving them means condemning them to death.",
+      "beat": "Impossible decision",
+      "characters": ["chen", "reyes"],
+      "context": { "location": "Bridge", "mood": "moral crisis", "timeOfDay": "ship-time 1200" }
+    },
+    {
+      "id": "story_mutiny",
+      "type": "story",
+      "description": "Reyes makes his move. Armed security personnel surround the bridge. 'This isn't personal, Captain. It's survival.'",
+      "beat": "Betrayal",
+      "characters": ["reyes", "aria"],
+      "context": { "location": "Bridge", "mood": "treacherous", "timeOfDay": "ship-time 0000" },
+      "onEnter": [{ "type": "set", "target": "flags.mutiny_brewing", "value": true }]
+    },
+    {
+      "id": "branch_final",
+      "type": "branch",
+      "description": "The fate of humanity rests on your final choice.",
+      "conditions": [
+        {
+          "targetNodeId": "ending_unity",
+          "conditions": [
+            { "type": "flag", "target": "aria_trusted", "operator": "==", "value": true },
+            { "type": "resource", "target": "morale", "operator": ">=", "value": 50 }
+          ]
+        },
+        {
+          "targetNodeId": "ending_sacrifice",
+          "conditions": [
+            { "type": "flag", "target": "alien_contact", "operator": "==", "value": true },
+            { "type": "player", "target": "compassion", "operator": ">=", "value": 60 }
+          ]
+        },
+        {
+          "targetNodeId": "ending_iron",
+          "conditions": [{ "type": "player", "target": "authority", "operator": ">=", "value": 70 }]
+        },
+        { "targetNodeId": "ending_lost", "isDefault": true, "conditions": [] }
+      ]
+    },
+    {
+      "id": "ending_unity",
+      "type": "ending",
+      "endingType": "good",
+      "title": "A New Dawn",
+      "description": "United under your leadership, humans and aliens work together. ARIA reveals the coordinates to a hidden sanctuary—a galaxy untouched by the darkness.",
+      "epilogue": "The Horizon becomes a legend. In the new galaxy, species work together to ensure the darkness never spreads again. Your name is remembered as the captain who saved not just humanity, but hope itself.",
+      "context": { "location": "New Galaxy", "mood": "triumphant", "timeOfDay": "eternal dawn" }
+    },
+    {
+      "id": "ending_sacrifice",
+      "type": "ending",
+      "endingType": "neutral",
+      "title": "The Greater Good",
+      "description": "You sacrifice the Horizon to buy time for the alien refugees. Your colonists reach safety on their ships, but humanity's great ship is lost.",
+      "epilogue": "History remembers you as a hero who chose compassion over certainty. Humanity survives, scattered among alien allies, forever changed but not alone.",
+      "context": { "location": "Horizon's Bridge", "mood": "bittersweet", "timeOfDay": "final moments" }
+    },
+    {
+      "id": "ending_iron",
+      "type": "ending",
+      "endingType": "neutral",
+      "title": "Iron Will",
+      "description": "Through force and determination, you maintain control. The mutiny is crushed. The ship reaches a marginal world, alone.",
+      "epilogue": "The colony survives but never thrives. Your name becomes synonymous with necessary cruelty. Perhaps you saved humanity. Perhaps you damned it to a slow death. History will judge.",
+      "context": { "location": "Colony World", "mood": "pyrrhic", "timeOfDay": "harsh dawn" }
+    },
+    {
+      "id": "ending_lost",
+      "type": "ending",
+      "endingType": "bad",
+      "title": "Into the Void",
+      "description": "Division destroys you. The mutiny fractures the crew. The ship drifts, a tomb carrying 10,000 frozen dreams into infinite darkness.",
+      "epilogue": "Millennia later, another species finds the Horizon. They study the frozen humans, trying to understand what drove them to destruction on the very edge of salvation.",
+      "context": { "location": "Drifting", "mood": "tragic", "timeOfDay": "eternal night" }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "from": "entry_crisis", "to": "story_aria_briefing", "choiceType": "agree", "choiceHint": "Get a full briefing from ARIA", "priority": 1 },
+    { "id": "e2", "from": "entry_crisis", "to": "story_reyes_confrontation", "choiceType": "question", "choiceHint": "Check on ship security first", "priority": 2 },
+    { "id": "e3", "from": "entry_crisis", "to": "story_chen_discovery", "choiceType": "investigate", "choiceHint": "Wake the science team", "priority": 3 },
+    { "id": "e4", "from": "entry_routine", "to": "story_chen_discovery", "choiceType": "agree", "choiceHint": "Follow Dr. Chen to the lab", "priority": 1 },
+    { "id": "e5", "from": "entry_routine", "to": "story_aria_briefing", "choiceType": "question", "choiceHint": "Consult ARIA first", "priority": 2 },
+    { "id": "e6", "from": "entry_routine", "to": "story_reyes_confrontation", "choiceType": "investigate", "choiceHint": "Check crew status", "priority": 3 },
+    { "id": "e7", "from": "story_aria_briefing", "to": "story_chen_discovery", "choiceType": "investigate", "choiceHint": "Have science investigate further", "priority": 1 },
+    { "id": "e8", "from": "story_aria_briefing", "to": "story_alien_signal", "choiceType": "question", "choiceHint": "Search for other survivors", "priority": 2, "effects": [{ "type": "set", "target": "flags.aria_trusted", "value": true }] },
+    { "id": "e9", "from": "story_aria_briefing", "to": "story_reyes_confrontation", "choiceType": "confront", "choiceHint": "Address the crew immediately", "priority": 3 },
+    { "id": "e10", "from": "story_chen_discovery", "to": "story_alien_signal", "choiceType": "investigate", "choiceHint": "Scan for any other life", "priority": 1 },
+    { "id": "e11", "from": "story_chen_discovery", "to": "story_reyes_confrontation", "choiceType": "confront", "choiceHint": "Prepare for the worst", "priority": 2 },
+    { "id": "e12", "from": "story_chen_discovery", "to": "story_aria_briefing", "choiceType": "question", "choiceHint": "What does ARIA know?", "priority": 3 },
+    { "id": "e13", "from": "story_reyes_confrontation", "to": "story_mutiny", "choiceType": "confront", "choiceHint": "Assert your authority forcefully", "priority": 1, "effects": [{ "type": "add", "target": "player.authority", "value": 15 }] },
+    { "id": "e14", "from": "story_reyes_confrontation", "to": "story_aria_briefing", "choiceType": "deflect", "choiceHint": "Promise full transparency", "priority": 2, "effects": [{ "type": "add", "target": "resources.morale", "value": 10 }] },
+    { "id": "e15", "from": "story_reyes_confrontation", "to": "story_alien_signal", "choiceType": "agree", "choiceHint": "Give the crew hope", "priority": 3, "conditions": [{ "type": "flag", "target": "alien_contact", "operator": "==", "value": true }] },
+    { "id": "e16", "from": "story_alien_signal", "to": "story_difficult_choice", "choiceType": "investigate", "choiceHint": "Investigate the signal", "priority": 1 },
+    { "id": "e17", "from": "story_alien_signal", "to": "story_reyes_confrontation", "choiceType": "question", "choiceHint": "Consult security before proceeding", "priority": 2 },
+    { "id": "e18", "from": "story_alien_signal", "to": "branch_final", "choiceType": "refuse", "choiceHint": "Ignore it—focus on human survival", "priority": 3 },
+    { "id": "e19", "from": "story_difficult_choice", "to": "branch_final", "choiceType": "agree", "choiceHint": "Save the aliens—share resources", "priority": 1, "effects": [{ "type": "add", "target": "player.compassion", "value": 25 }, { "type": "subtract", "target": "resources.fuel", "value": 20 }] },
+    { "id": "e20", "from": "story_difficult_choice", "to": "branch_final", "choiceType": "refuse", "choiceHint": "Humanity comes first", "priority": 2, "effects": [{ "type": "add", "target": "player.authority", "value": 15 }] },
+    { "id": "e21", "from": "story_difficult_choice", "to": "story_mutiny", "choiceType": "deflect", "choiceHint": "Let the crew vote", "priority": 3 },
+    { "id": "e22", "from": "story_mutiny", "to": "branch_final", "choiceType": "confront", "choiceHint": "Fight for control", "priority": 1, "effects": [{ "type": "add", "target": "player.authority", "value": 20 }, { "type": "subtract", "target": "resources.morale", "value": 25 }] },
+    { "id": "e23", "from": "story_mutiny", "to": "branch_final", "choiceType": "agree", "choiceHint": "Surrender peacefully", "priority": 2 },
+    { "id": "e24", "from": "story_mutiny", "to": "branch_final", "choiceType": "deflect", "choiceHint": "Negotiate a compromise", "priority": 3, "effects": [{ "type": "set", "target": "flags.aria_trusted", "value": true }] }
+  ]
+}

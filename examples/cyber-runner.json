@@ -1,0 +1,213 @@
+{
+  "metadata": {
+    "id": "cyber-runner-001",
+    "title": "Neon Shadows",
+    "description": "In the sprawling megacity of Neo-Cascadia, you're a runner—a data thief for hire. When a routine job uncovers a corporate conspiracy that could change humanity forever, you must decide what's worth more: survival or the truth.",
+    "author": "Network Narrative Engine",
+    "version": "1.0.0",
+    "tags": ["cyberpunk", "thriller", "noir", "tech"]
+  },
+  "characters": [
+    {
+      "id": "ghost",
+      "name": "Ghost",
+      "description": "Your AI partner, uploaded consciousness of a legendary hacker. Loyal but glitching—memories fragmenting.",
+      "personality": "Sardonic, protective, increasingly erratic.",
+      "traits": ["brilliant", "unstable", "loyal", "fading"],
+      "initialRelationship": 40
+    },
+    {
+      "id": "vera",
+      "name": "Vera Okonkwo",
+      "description": "Corporate security chief hunting you. Professional respect mixed with duty. Has her own doubts.",
+      "personality": "Precise, honorable within a corrupt system, conflicted.",
+      "traits": ["skilled", "principled", "dangerous", "questioning"],
+      "initialRelationship": -20
+    },
+    {
+      "id": "jack",
+      "name": "Jack 'Wirehead' Torres",
+      "description": "Black market tech dealer, your go-to for gear. Information broker with flexible morals.",
+      "personality": "Cheerful, mercenary, surprisingly reliable.",
+      "traits": ["connected", "greedy", "pragmatic", "survivor"],
+      "initialRelationship": 15
+    }
+  ],
+  "worldState": {
+    "player": {
+      "heat": { "type": "number", "default": 20, "min": 0, "max": 100 },
+      "tech_skill": { "type": "number", "default": 50, "min": 0, "max": 100 }
+    },
+    "flags": {
+      "has_data": { "type": "boolean", "default": false },
+      "knows_conspiracy": { "type": "boolean", "default": false },
+      "vera_ally": { "type": "boolean", "default": false },
+      "ghost_saved": { "type": "boolean", "default": false }
+    },
+    "resources": {
+      "credits": { "type": "number", "default": 500 },
+      "street_cred": { "type": "number", "default": 40 }
+    }
+  },
+  "nodes": [
+    {
+      "id": "entry_job",
+      "type": "entry",
+      "title": "The Job",
+      "preview": "A simple data heist goes sideways.",
+      "description": "The Helix Corp server room hums with cold data. Ghost whispers in your neural link: 'Grab and go, thirty seconds.' Then you see it—files marked 'Project Ascension.' Not your job, but Ghost freezes. 'I... I remember this.'",
+      "characters": ["ghost"],
+      "context": { "location": "Helix Corp Server Farm", "mood": "tense", "timeOfDay": "2AM" }
+    },
+    {
+      "id": "entry_betrayal",
+      "type": "entry",
+      "title": "Setup",
+      "preview": "Your client sold you out.",
+      "description": "Corporate security surrounds your safehouse. Your client's message plays on loop: 'Nothing personal. Helix paid more.' Through the window, Vera Okonkwo signals her team. Ghost's voice crackles: 'Back door. Now. I have a plan.'",
+      "characters": ["vera", "ghost"],
+      "context": { "location": "Safehouse - Lower Cascadia", "mood": "desperate", "timeOfDay": "midnight" },
+      "onEnter": [{ "type": "add", "target": "player.heat", "value": 30 }]
+    },
+    {
+      "id": "story_data_discovery",
+      "type": "story",
+      "description": "The stolen files reveal Project Ascension: forced consciousness uploading. Helix plans to digitize millions, willing or not, creating a controllable workforce. Ghost's memories click into place—they were the prototype.",
+      "beat": "The conspiracy revealed",
+      "characters": ["ghost"],
+      "context": { "location": "Hidden Server", "mood": "horrifying", "timeOfDay": "3AM" },
+      "onEnter": [
+        { "type": "set", "target": "flags.has_data", "value": true },
+        { "type": "set", "target": "flags.knows_conspiracy", "value": true }
+      ]
+    },
+    {
+      "id": "story_jack_deal",
+      "type": "story",
+      "description": "Jack's shop is a neon-lit cave of illegal tech. 'Project Ascension? Heavy stuff. I can get you gear, contacts, maybe a way out of the city. But this heat? My price just tripled.'",
+      "beat": "Upgrading for the fight",
+      "characters": ["jack"],
+      "context": { "location": "Jack's Shop - The Warrens", "mood": "mercenary", "timeOfDay": "evening" }
+    },
+    {
+      "id": "story_vera_encounter",
+      "type": "story",
+      "description": "Vera finds you in a rain-soaked alley, gun drawn. 'I've read the files you stole. If they're real...' She lowers the weapon. 'I didn't sign up to help monsters.'",
+      "beat": "An unlikely ally",
+      "characters": ["vera"],
+      "context": { "location": "Back Alley - Neon District", "mood": "tense", "timeOfDay": "rainy night" }
+    },
+    {
+      "id": "story_ghost_crisis",
+      "type": "story",
+      "description": "Ghost's code is degrading. 'They built in obsolescence. I was never meant to last.' You could risk a dangerous upgrade—or let them fade into static, finally free.",
+      "beat": "Saving a digital soul",
+      "characters": ["ghost"],
+      "context": { "location": "Neural Clinic - Underground", "mood": "emotional", "timeOfDay": "dawn" }
+    },
+    {
+      "id": "story_helix_tower",
+      "type": "story",
+      "description": "Helix Tower pierces the smog, a monument to corporate power. The servers holding Ascension's code are on the top floor. Getting in means going through an army. Getting out means a miracle.",
+      "beat": "Planning the impossible",
+      "characters": ["jack", "vera"],
+      "context": { "location": "Overlook Point", "mood": "determined", "timeOfDay": "dusk" }
+    },
+    {
+      "id": "story_final_run",
+      "type": "story",
+      "description": "Inside Helix Tower, alarms scream. Guards converge. Ghost fights their systems while Vera covers your back. The upload terminal waits—you can destroy Ascension or expose it to the world.",
+      "beat": "The point of no return",
+      "characters": ["ghost", "vera"],
+      "context": { "location": "Helix Tower - Server Core", "mood": "climactic", "timeOfDay": "midnight" }
+    },
+    {
+      "id": "branch_final",
+      "type": "branch",
+      "description": "The choice that defines everything.",
+      "conditions": [
+        {
+          "targetNodeId": "ending_revolution",
+          "conditions": [
+            { "type": "flag", "target": "vera_ally", "operator": "==", "value": true },
+            { "type": "flag", "target": "ghost_saved", "operator": "==", "value": true }
+          ]
+        },
+        {
+          "targetNodeId": "ending_ghost_legacy",
+          "conditions": [
+            { "type": "flag", "target": "ghost_saved", "operator": "==", "value": true },
+            { "type": "resource", "target": "street_cred", "operator": ">=", "value": 60 }
+          ]
+        },
+        {
+          "targetNodeId": "ending_shadows",
+          "conditions": [{ "type": "player", "target": "heat", "operator": "<", "value": 50 }]
+        },
+        { "targetNodeId": "ending_burn", "isDefault": true, "conditions": [] }
+      ]
+    },
+    {
+      "id": "ending_revolution",
+      "type": "ending",
+      "endingType": "good",
+      "title": "Neon Dawn",
+      "description": "The data floods every screen in the city. Helix burns in the court of public opinion. Ghost survives in the free net, a digital guardian. Vera rebuilds security with ethics. You disappear—a legend.",
+      "epilogue": "They call it the Night of Neon Dawn, when one runner brought down an empire. Corps still scheme, but they learned to fear the shadows. Ghost watches over the net. Vera hunts the corrupt. And somewhere, you're planning the next run.",
+      "context": { "location": "Neo-Cascadia Skyline", "mood": "triumphant", "timeOfDay": "dawn" }
+    },
+    {
+      "id": "ending_ghost_legacy",
+      "type": "ending",
+      "endingType": "neutral",
+      "title": "Digital Immortal",
+      "description": "Ghost uploads the data as their final act, spreading across the net, becoming something new—a guardian AI that protects other uploaded minds.",
+      "epilogue": "You couldn't save them and the world. But Ghost chose their end, and it mattered. The conspiracy is wounded, not dead. The fight continues in shadows and subroutines. Every time your neural link whispers a warning, you wonder if it's them.",
+      "context": { "location": "The Net", "mood": "bittersweet", "timeOfDay": "digital eternity" }
+    },
+    {
+      "id": "ending_shadows",
+      "type": "ending",
+      "endingType": "neutral",
+      "title": "Smoke and Mirrors",
+      "description": "You sell the data to Helix's rivals, watch corps tear each other apart, and slip away in the chaos. The conspiracy continues under new management.",
+      "epilogue": "Credits fill your account. A new identity, a new city, a new life. You didn't save the world, but you survived it. Ghost fades, whispering something that might be goodbye or good luck. The neon never stops glowing.",
+      "context": { "location": "Departing Train", "mood": "ambiguous", "timeOfDay": "before dawn" }
+    },
+    {
+      "id": "ending_burn",
+      "type": "ending",
+      "endingType": "bad",
+      "title": "Flatlined",
+      "description": "Too much heat, too many enemies. Helix security corners you in the tower. Ghost screams in static as they're purged. The last thing you see is Vera's conflicted face.",
+      "epilogue": "Your body joins the disappeared. The conspiracy continues. But somewhere in the net, fragments of Ghost persist, waiting for another runner brave or foolish enough to listen to whispers in the dark.",
+      "context": { "location": "Helix Tower", "mood": "tragic", "timeOfDay": "endless night" }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "from": "entry_job", "to": "story_data_discovery", "choiceType": "investigate", "choiceHint": "Download the hidden files", "priority": 1, "effects": [{ "type": "add", "target": "player.heat", "value": 20 }] },
+    { "id": "e2", "from": "entry_job", "to": "story_jack_deal", "choiceType": "refuse", "choiceHint": "Stick to the original job", "priority": 2 },
+    { "id": "e3", "from": "entry_job", "to": "story_ghost_crisis", "choiceType": "question", "choiceHint": "Ask Ghost what they remember", "priority": 3 },
+    { "id": "e4", "from": "entry_betrayal", "to": "story_vera_encounter", "choiceType": "confront", "choiceHint": "Face Vera directly", "priority": 1 },
+    { "id": "e5", "from": "entry_betrayal", "to": "story_jack_deal", "choiceType": "agree", "choiceHint": "Follow Ghost's escape plan", "priority": 2 },
+    { "id": "e6", "from": "entry_betrayal", "to": "story_data_discovery", "choiceType": "investigate", "choiceHint": "Grab the data before running", "priority": 3 },
+    { "id": "e7", "from": "story_data_discovery", "to": "story_jack_deal", "choiceType": "investigate", "choiceHint": "Get gear for what's coming", "priority": 1 },
+    { "id": "e8", "from": "story_data_discovery", "to": "story_vera_encounter", "choiceType": "confront", "choiceHint": "Find someone inside who might help", "priority": 2 },
+    { "id": "e9", "from": "story_data_discovery", "to": "story_ghost_crisis", "choiceType": "question", "choiceHint": "Help Ghost process this", "priority": 3 },
+    { "id": "e10", "from": "story_jack_deal", "to": "story_helix_tower", "choiceType": "agree", "choiceHint": "Buy what you need for the assault", "priority": 1, "effects": [{ "type": "subtract", "target": "resources.credits", "value": 300 }, { "type": "add", "target": "player.tech_skill", "value": 15 }] },
+    { "id": "e11", "from": "story_jack_deal", "to": "story_vera_encounter", "choiceType": "question", "choiceHint": "Ask about corporate insiders", "priority": 2 },
+    { "id": "e12", "from": "story_jack_deal", "to": "branch_final", "choiceType": "refuse", "choiceHint": "Sell the data and disappear", "priority": 3 },
+    { "id": "e13", "from": "story_vera_encounter", "to": "story_helix_tower", "choiceType": "agree", "choiceHint": "Accept her help", "priority": 1, "effects": [{ "type": "set", "target": "flags.vera_ally", "value": true }, { "type": "add", "target": "character.vera.relationship", "value": 30 }] },
+    { "id": "e14", "from": "story_vera_encounter", "to": "story_jack_deal", "choiceType": "refuse", "choiceHint": "Don't trust corporate", "priority": 2 },
+    { "id": "e15", "from": "story_vera_encounter", "to": "story_ghost_crisis", "choiceType": "deflect", "choiceHint": "Need to handle something first", "priority": 3 },
+    { "id": "e16", "from": "story_ghost_crisis", "to": "story_helix_tower", "choiceType": "agree", "choiceHint": "Risk the upgrade—save Ghost", "priority": 1, "effects": [{ "type": "set", "target": "flags.ghost_saved", "value": true }, { "type": "add", "target": "character.ghost.relationship", "value": 25 }] },
+    { "id": "e17", "from": "story_ghost_crisis", "to": "story_helix_tower", "choiceType": "refuse", "choiceHint": "Let them choose their end", "priority": 2 },
+    { "id": "e18", "from": "story_ghost_crisis", "to": "story_jack_deal", "choiceType": "question", "choiceHint": "Jack might know someone", "priority": 3 },
+    { "id": "e19", "from": "story_helix_tower", "to": "story_final_run", "choiceType": "agree", "choiceHint": "Begin the assault", "priority": 1 },
+    { "id": "e20", "from": "story_helix_tower", "to": "story_ghost_crisis", "choiceType": "question", "choiceHint": "Ghost needs attention first", "priority": 2, "conditions": [{ "type": "flag", "target": "ghost_saved", "operator": "==", "value": false }] },
+    { "id": "e21", "from": "story_helix_tower", "to": "branch_final", "choiceType": "refuse", "choiceHint": "This is suicide—walk away", "priority": 3 },
+    { "id": "e22", "from": "story_final_run", "to": "branch_final", "choiceType": "agree", "choiceHint": "Expose everything to the world", "priority": 1, "effects": [{ "type": "add", "target": "resources.street_cred", "value": 30 }] },
+    { "id": "e23", "from": "story_final_run", "to": "branch_final", "choiceType": "confront", "choiceHint": "Destroy the servers completely", "priority": 2 },
+    { "id": "e24", "from": "story_final_run", "to": "branch_final", "choiceType": "deflect", "choiceHint": "Take the data and run", "priority": 3 }
+  ]
+}

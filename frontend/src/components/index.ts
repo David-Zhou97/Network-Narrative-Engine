@@ -1,4 +1,6 @@
 export { TitleScreen } from './TitleScreen';
+export { StoryMarketplace } from './StoryMarketplace';
+export { StoryDetailModal } from './StoryDetailModal';
 export { SavedGamesScreen } from './SavedGamesScreen';
 export { StorySelectScreen } from './StorySelectScreen';
 export { GameScreen } from './GameScreen';

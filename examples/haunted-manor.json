@@ -1,0 +1,192 @@
+{
+  "metadata": {
+    "id": "haunted-manor-001",
+    "title": "Whispers of Blackwood Manor",
+    "description": "You are a paranormal investigator called to Blackwood Manor, an estate plagued by unexplained phenomena. The Blackwood family's dark history spans centuries, and the spirits within have their own tales to tell.",
+    "author": "Network Narrative Engine",
+    "version": "1.0.0",
+    "tags": ["horror", "supernatural", "gothic"]
+  },
+  "characters": [
+    {
+      "id": "evelyn",
+      "name": "Evelyn Blackwood",
+      "description": "The last living heir, haunted by visions.",
+      "personality": "Fragile but determined. Knows more than she admits.",
+      "traits": ["haunted", "secretive", "brave"],
+      "initialRelationship": 15
+    },
+    {
+      "id": "margaret",
+      "name": "Margaret (The Spirit)",
+      "description": "A ghostly presence tied to a tragic Victorian-era event.",
+      "personality": "Mournful but protective.",
+      "traits": ["tragic", "mysterious", "bound"],
+      "initialRelationship": 0
+    },
+    {
+      "id": "thomas",
+      "name": "Thomas Crane",
+      "description": "The elderly caretaker who has seen things he refuses to discuss.",
+      "personality": "Gruff and superstitious.",
+      "traits": ["fearful", "loyal", "evasive"],
+      "initialRelationship": -5
+    }
+  ],
+  "worldState": {
+    "player": {
+      "sanity": { "type": "number", "default": 100, "min": 0, "max": 100 },
+      "psychic_sensitivity": { "type": "number", "default": 0, "min": 0 }
+    },
+    "flags": {
+      "found_locket": { "type": "boolean", "default": false },
+      "knows_tragedy": { "type": "boolean", "default": false },
+      "shadow_awakened": { "type": "boolean", "default": false },
+      "margaret_ally": { "type": "boolean", "default": false }
+    },
+    "resources": {
+      "evidence": { "type": "number", "default": 0 },
+      "candles": { "type": "number", "default": 3 }
+    }
+  },
+  "nodes": [
+    {
+      "id": "entry_day",
+      "type": "entry",
+      "title": "Daylight Arrival",
+      "preview": "Arrive at the manor while the sun still provides comfort.",
+      "description": "Blackwood Manor rises from the mist like a Gothic monument. Evelyn Blackwood waits on the crumbling steps. Even in daylight, the windows seem to watch you.",
+      "characters": ["evelyn"],
+      "context": { "location": "Blackwood Manor - Front Gates", "mood": "ominous", "timeOfDay": "afternoon" }
+    },
+    {
+      "id": "entry_night",
+      "type": "entry",
+      "title": "Nightfall Investigation",
+      "preview": "Begin when paranormal activity peaks.",
+      "description": "Your headlights cut through fog as you approach at midnight. Thomas stands in the doorway. 'You shouldn't have come after dark.' Something moves in an upstairs window.",
+      "characters": ["thomas"],
+      "context": { "location": "Blackwood Manor - Entrance", "mood": "terrifying", "timeOfDay": "night" },
+      "onEnter": [{ "type": "subtract", "target": "player.sanity", "value": 5 }]
+    },
+    {
+      "id": "story_evelyn_interview",
+      "type": "story",
+      "description": "Evelyn speaks of sleepless nights, whispered voices, and seeing a woman in Victorian dress at the foot of her bed.",
+      "beat": "Learning about the haunting",
+      "characters": ["evelyn"],
+      "context": { "location": "Parlor", "mood": "tense", "timeOfDay": "evening" }
+    },
+    {
+      "id": "story_library_research",
+      "type": "story",
+      "description": "The library holds centuries of records. You find a journal from 1892 detailing Margaret Blackwood's tragic death and a dark ritual.",
+      "beat": "Uncovering dark history",
+      "characters": [],
+      "context": { "location": "Library", "mood": "revelatory", "timeOfDay": "night" },
+      "onEnter": [
+        { "type": "set", "target": "flags.knows_tragedy", "value": true },
+        { "type": "add", "target": "resources.evidence", "value": 2 }
+      ]
+    },
+    {
+      "id": "story_margaret_contact",
+      "type": "story",
+      "description": "The temperature plummets. A translucent figure materializes—a young woman in Victorian dress, eyes filled with sorrow, reaching toward you.",
+      "beat": "First contact with Margaret",
+      "characters": ["margaret"],
+      "context": { "location": "Margaret's Room", "mood": "supernatural", "timeOfDay": "night" },
+      "onEnter": [{ "type": "subtract", "target": "player.sanity", "value": 10 }]
+    },
+    {
+      "id": "story_shadow_encounter",
+      "type": "story",
+      "description": "Lights die. In absolute darkness, something vast and cold presses against reality. A presence older than humanity reaches toward your mind.",
+      "beat": "The shadow reveals itself",
+      "characters": [],
+      "context": { "location": "Cellar Stairs", "mood": "terrifying", "timeOfDay": "night" },
+      "onEnter": [
+        { "type": "set", "target": "flags.shadow_awakened", "value": true },
+        { "type": "subtract", "target": "player.sanity", "value": 20 }
+      ]
+    },
+    {
+      "id": "story_ritual_prep",
+      "type": "story",
+      "description": "Using the journal and Margaret's guidance, you gather components for the banishing ritual: iron, blessed salt, and Margaret's locket.",
+      "beat": "Preparing the ritual",
+      "characters": ["evelyn", "margaret"],
+      "context": { "location": "Chapel", "mood": "determined", "timeOfDay": "night" },
+      "onEnter": [{ "type": "set", "target": "flags.margaret_ally", "value": true }]
+    },
+    {
+      "id": "branch_final",
+      "type": "branch",
+      "description": "The manor trembles as the shadow rises.",
+      "conditions": [
+        {
+          "targetNodeId": "ending_banished",
+          "conditions": [
+            { "type": "flag", "target": "margaret_ally", "operator": "==", "value": true },
+            { "type": "resource", "target": "candles", "operator": ">=", "value": 1 }
+          ]
+        },
+        {
+          "targetNodeId": "ending_consumed",
+          "conditions": [{ "type": "player", "target": "sanity", "operator": "<", "value": 30 }]
+        },
+        { "targetNodeId": "ending_fled", "isDefault": true, "conditions": [] }
+      ]
+    },
+    {
+      "id": "ending_banished",
+      "type": "ending",
+      "endingType": "good",
+      "title": "The Light Prevails",
+      "description": "Margaret's sacrifice completes the ritual. The shadow is sealed forever. The manor grows truly quiet for the first time in centuries.",
+      "epilogue": "Evelyn weeps as Margaret fades, finally at peace. You leave at dawn with documented evidence of the most significant paranormal event ever recorded.",
+      "context": { "location": "Cellar", "mood": "triumphant", "timeOfDay": "dawn" }
+    },
+    {
+      "id": "ending_consumed",
+      "type": "ending",
+      "endingType": "bad",
+      "title": "Into the Darkness",
+      "description": "Your sanity shattered, you become a vessel for the shadow. The last thing you see is Evelyn's terrified face.",
+      "epilogue": "The manor claims another soul. Thomas finds what remains weeks later. The shadow grows stronger.",
+      "context": { "location": "Cellar", "mood": "horrific", "timeOfDay": "eternal night" }
+    },
+    {
+      "id": "ending_fled",
+      "type": "ending",
+      "endingType": "neutral",
+      "title": "Some Doors Stay Closed",
+      "description": "You escape at dawn, evidence incomplete but life intact. The shadow remains unsealed.",
+      "epilogue": "You receive letters from Evelyn—first hopeful, then desperate, then nothing. Some mysteries aren't meant to be solved.",
+      "context": { "location": "Outside Manor", "mood": "uncertain", "timeOfDay": "dawn" }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "from": "entry_day", "to": "story_evelyn_interview", "choiceType": "agree", "choiceHint": "Let Evelyn tell you about the haunting", "priority": 1 },
+    { "id": "e2", "from": "entry_day", "to": "story_library_research", "choiceType": "investigate", "choiceHint": "Explore the manor first", "priority": 2 },
+    { "id": "e3", "from": "entry_day", "to": "story_margaret_contact", "choiceType": "question", "choiceHint": "Investigate the strange feeling immediately", "priority": 3 },
+    { "id": "e4", "from": "entry_night", "to": "story_shadow_encounter", "choiceType": "investigate", "choiceHint": "Investigate the movement upstairs", "priority": 1 },
+    { "id": "e5", "from": "entry_night", "to": "story_evelyn_interview", "choiceType": "agree", "choiceHint": "Find Evelyn first", "priority": 2 },
+    { "id": "e6", "from": "entry_night", "to": "story_library_research", "choiceType": "question", "choiceHint": "Research the manor's history", "priority": 3 },
+    { "id": "e7", "from": "story_evelyn_interview", "to": "story_margaret_contact", "choiceType": "investigate", "choiceHint": "See where the spirit appeared", "priority": 1 },
+    { "id": "e8", "from": "story_evelyn_interview", "to": "story_library_research", "choiceType": "question", "choiceHint": "Research family records", "priority": 2 },
+    { "id": "e9", "from": "story_evelyn_interview", "to": "story_shadow_encounter", "choiceType": "confront", "choiceHint": "Demand to see the cellar", "priority": 3 },
+    { "id": "e10", "from": "story_library_research", "to": "story_margaret_contact", "choiceType": "investigate", "choiceHint": "Contact Margaret's spirit", "priority": 1 },
+    { "id": "e11", "from": "story_library_research", "to": "story_shadow_encounter", "choiceType": "confront", "choiceHint": "Confront the source of evil", "priority": 2 },
+    { "id": "e12", "from": "story_library_research", "to": "story_ritual_prep", "choiceType": "agree", "choiceHint": "Prepare the banishing ritual", "priority": 3, "conditions": [{ "type": "flag", "target": "knows_tragedy", "operator": "==", "value": true }] },
+    { "id": "e13", "from": "story_margaret_contact", "to": "story_ritual_prep", "choiceType": "comfort", "choiceHint": "Help Margaret find peace", "priority": 1 },
+    { "id": "e14", "from": "story_margaret_contact", "to": "story_shadow_encounter", "choiceType": "confront", "choiceHint": "Demand answers about the shadow", "priority": 2 },
+    { "id": "e15", "from": "story_margaret_contact", "to": "story_library_research", "choiceType": "question", "choiceHint": "Research her story first", "priority": 3 },
+    { "id": "e16", "from": "story_shadow_encounter", "to": "story_ritual_prep", "choiceType": "agree", "choiceHint": "Seek help to stop it", "priority": 1 },
+    { "id": "e17", "from": "story_shadow_encounter", "to": "branch_final", "choiceType": "refuse", "choiceHint": "Flee while you can", "priority": 2 },
+    { "id": "e18", "from": "story_shadow_encounter", "to": "story_margaret_contact", "choiceType": "question", "choiceHint": "Call for Margaret's help", "priority": 3 },
+    { "id": "e19", "from": "story_ritual_prep", "to": "branch_final", "choiceType": "agree", "choiceHint": "Begin the banishing ritual", "priority": 1 },
+    { "id": "e20", "from": "story_ritual_prep", "to": "branch_final", "choiceType": "confront", "choiceHint": "Face the shadow alone", "priority": 2, "effects": [{ "type": "set", "target": "flags.margaret_ally", "value": false }] },
+    { "id": "e21", "from": "story_ritual_prep", "to": "branch_final", "choiceType": "refuse", "choiceHint": "Abandon the manor", "priority": 3 }
+  ]
+}

@@ -1,15 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useGame } from '../contexts/GameContext';
-import detectiveStory from '../../../examples/detective-mystery.json';
-import type { NarrativeDefinition } from '../types';
 import styles from './TitleScreen.module.css';
 
 export function TitleScreen(): React.ReactElement {
-  const { loadStory, savedGames, setCurrentScreen, isApiAvailable } = useGame();
+  const { savedGames, setCurrentScreen, isApiAvailable } = useGame();
 
   const handleNewStory = () => {
-    loadStory(detectiveStory as NarrativeDefinition);
+    setCurrentScreen('marketplace');
   };
 
   const handleContinue = () => {
@@ -44,8 +42,8 @@ export function TitleScreen(): React.ReactElement {
           transition={{ delay: 0.4 }}
         >
           <button className={styles.primaryButton} onClick={handleNewStory}>
-            <PlayIcon />
-            <span>New Story</span>
+            <BrowseIcon />
+            <span>Browse Stories</span>
           </button>
 
           {savedGames.length > 0 && (
@@ -100,10 +98,13 @@ function BookIcon() {
   );
 }
 
-function PlayIcon() {
+function BrowseIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M8 5v14l11-7z" />
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
     </svg>
   );
 }
