@@ -179,9 +179,9 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
         // Need at least 3 value conflicts with both values filled
         return valueConflicts.filter(c => c.value1.trim() && c.value2.trim()).length >= 3;
       case 'characters':
-        // Need at least 2 characters with required fields
-        return storyCharacters.filter(c =>
-          c.name.trim() && c.archetype && c.contradiction.trim() && c.bond.trim()
+        // Need at least 2 characters with required fields (name and description)
+        return characters.filter(c =>
+          c.name.trim() && c.description.trim()
         ).length >= 2;
       case 'rules':
         // Need at least 5 world rules
@@ -194,7 +194,7 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
       default:
         return false;
     }
-  }, [step, title, plot, coreTension, beginningScenario, tags, valueConflicts, storyCharacters, worldRules, endingDimensions]);
+  }, [step, title, plot, coreTension, beginningScenario, tags, valueConflicts, characters, worldRules, endingDimensions]);
 
   const goNext = () => {
     const nextIndex = currentStepIndex + 1;
