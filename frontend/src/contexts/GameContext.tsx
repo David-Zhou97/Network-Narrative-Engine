@@ -3,6 +3,8 @@ import { NarrativeEngine } from '../../../src/engine/NarrativeEngine';
 import { DialogueGenerator, MockAIClient } from '../../../src/ai/DialogueGenerator';
 import { DEFAULT_AI_CONFIG } from '../../../src/types/ai';
 import { apiClient } from '../api/client';
+import { getUserStoryGraph } from '../data/storyRegistry';
+import { graphToNarrativeDefinition } from '../../../src/types/storyCreation';
 import type {
   NarrativeDefinition,
   NarrativeMetadata,
@@ -15,6 +17,7 @@ import type {
   CustomResponseState,
 } from '../types';
 import type { TurnResult, EndingResult } from '../../../src/types/narrative';
+import type { GeneratedGraph } from '../../../src/types/storyCreation';
 
 // Story imports
 import detectiveStory from '../../../examples/detective-mystery.json';
@@ -219,21 +222,33 @@ export function GameProvider({ children }: GameProviderProps): React.ReactElemen
     }
   }, [isApiAvailable]);
 
-  // Load a story by ID (from marketplace)
+  // Load a story by ID (from marketplace or user-created)
   const loadStoryById = useCallback(async (storyId: string) => {
-    const storyData = storyFiles[storyId];
-    if (!storyData) {
-      setError(`Story not found: ${storyId}`);
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
 
     try {
       // Small delay for UI feedback
       await new Promise(resolve => setTimeout(resolve, 300));
-      loadStory(storyData);
+
+      // First check built-in stories
+      const builtInStory = storyFiles[storyId];
+      if (builtInStory) {
+        loadStory(builtInStory);
+        return;
+      }
+
+      // Then check user-created stories
+      const userGraph = getUserStoryGraph(storyId) as GeneratedGraph | undefined;
+      if (userGraph) {
+        // Convert GeneratedGraph to NarrativeDefinition format
+        const narrativeDefinition = graphToNarrativeDefinition(userGraph) as NarrativeDefinition;
+        loadStory(narrativeDefinition);
+        return;
+      }
+
+      // Story not found in either location
+      setError(`Story not found: ${storyId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load story');
     } finally {

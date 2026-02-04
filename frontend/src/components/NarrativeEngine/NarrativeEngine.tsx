@@ -13,7 +13,7 @@ import styles from './NarrativeEngine.module.css';
 
 interface NarrativeEngineProps {
   onBack: () => void;
-  onPublished: (storyId: string) => void;
+  onPublished: (graph: GeneratedGraph, shortDescription: string) => void;
 }
 
 type Stage = 'create' | 'edit' | 'publish' | 'success';
@@ -67,10 +67,10 @@ export function NarrativeEngine({ onBack, onPublished }: NarrativeEngineProps): 
   }, [graph, shortDescription]);
 
   const handleViewInMarketplace = useCallback(() => {
-    if (publishedStoryId) {
-      onPublished(publishedStoryId);
+    if (graph) {
+      onPublished(graph, shortDescription);
     }
-  }, [publishedStoryId, onPublished]);
+  }, [graph, shortDescription, onPublished]);
 
   return (
     <div className={styles.container}>

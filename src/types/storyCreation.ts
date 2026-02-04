@@ -8,6 +8,8 @@
 export interface StoryCreationInput {
   /** General plot summary */
   plot: string;
+  /** Core tension - the central dramatic conflict that drives hard choices */
+  coreTension?: string;
   /** The beginning scenario - how the story starts */
   beginningScenario: string;
   /** Multiple possible endings for the story */

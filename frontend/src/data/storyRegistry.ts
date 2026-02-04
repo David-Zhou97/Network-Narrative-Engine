@@ -241,14 +241,28 @@ export function getStoriesByTag(tag: string): StoryInfo[] {
 // User-created stories storage (session-based for now)
 let userCreatedStories: StoryInfo[] = [];
 
-export function addUserStory(story: StoryInfo): void {
+// Storage for user story graph data (needed to play user-created stories)
+// Uses unknown type to avoid circular dependency with storyCreation types
+const userStoryGraphs: Map<string, unknown> = new Map();
+
+export function addUserStory(story: StoryInfo, graphData?: unknown): void {
   // Remove if exists (update)
   userCreatedStories = userCreatedStories.filter(s => s.id !== story.id);
   userCreatedStories.push(story);
+
+  // Store graph data if provided
+  if (graphData) {
+    userStoryGraphs.set(story.id, graphData);
+  }
+}
+
+export function getUserStoryGraph(id: string): unknown | undefined {
+  return userStoryGraphs.get(id);
 }
 
 export function removeUserStory(id: string): void {
   userCreatedStories = userCreatedStories.filter(s => s.id !== id);
+  userStoryGraphs.delete(id);
 }
 
 export function getUserStories(): StoryInfo[] {

@@ -22,7 +22,7 @@ function AppContent(): React.ReactElement {
 
   // Handle published story
   const handleStoryPublished = useCallback((graph: GeneratedGraph, shortDescription: string) => {
-    // Add to user stories registry
+    // Add to user stories registry with graph data for loading
     const storyInfo: StoryInfo = {
       id: graph.metadata.id,
       title: graph.metadata.title,
@@ -34,7 +34,8 @@ function AppContent(): React.ReactElement {
       difficulty: 'medium',
       estimatedTime: '20-30 min',
     };
-    addUserStory(storyInfo);
+    // Pass graph data so it can be loaded later
+    addUserStory(storyInfo, graph);
 
     // Navigate to marketplace
     setCurrentScreen('marketplace');
@@ -138,7 +139,7 @@ function AppContent(): React.ReactElement {
           >
             <NarrativeEngine
               onBack={() => setCurrentScreen('marketplace')}
-              onPublished={() => setCurrentScreen('marketplace')}
+              onPublished={handleStoryPublished}
             />
           </motion.div>
         )}

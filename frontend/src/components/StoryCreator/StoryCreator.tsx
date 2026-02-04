@@ -220,6 +220,7 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
       const input: StoryCreationInput = {
         title,
         plot,
+        coreTension,
         beginningScenario,
         tags,
         difficulty,
