@@ -20,8 +20,9 @@ GUIDELINES:
 - Maintain continuity with the conversation history
 - React appropriately to the player's previous choices
 
-OUTPUT FORMAT:
-You must respond with valid JSON in this exact structure:
+RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
+
+Output ONLY valid JSON in this exact structure:
 {
   "narration": "Scene description in second person",
   "dialogues": [
@@ -155,8 +156,9 @@ VALUE CONFLICT IN THIS SCENE:
 {value1} vs {value2}
 {conflictDescription}
 
-OUTPUT FORMAT:
-You must respond with valid JSON in this exact structure:
+RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
+
+Output ONLY valid JSON in this exact structure:
 {
   "narration": "Scene setup in second person (3-4 sentences)",
   "dialogues": [
