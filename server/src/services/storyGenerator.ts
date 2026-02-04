@@ -234,9 +234,15 @@ Generate detailed character definitions based on the user's input.
 CRITICAL: Characters must have clear motivations that can create CONFLICT with the player's goals.
 Each character should have secrets, flaws, and competing interests.
 
-RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
+CRITICAL RESPONSE FORMAT RULES:
+1. Your ENTIRE response must be valid JSON - nothing else
+2. Do NOT include any text, explanation, or commentary before or after the JSON
+3. Do NOT wrap the JSON in markdown code blocks (\`\`\`json or \`\`\`)
+4. Do NOT include phrases like "Here is the JSON:" or "Output:"
+5. Start your response IMMEDIATELY with the opening brace {
+6. Ensure all strings are properly escaped (use \\" for quotes, \\n for newlines)
 
-Output ONLY valid JSON matching this structure:
+Output this exact JSON structure:
 {
   "characters": [
     {
@@ -245,7 +251,7 @@ Output ONLY valid JSON matching this structure:
       "description": "Physical and role description",
       "personality": "Detailed personality that drives conflict",
       "traits": ["trait1", "trait2", "trait3", "trait4"],
-      "initialRelationship": number between -100 and 100
+      "initialRelationship": 0
     }
   ]
 }`;
@@ -297,9 +303,15 @@ Generate the characters JSON:`;
 Create variables that track meaningful choices, resources, and story flags.
 These should create TRADE-OFFS - gaining one thing should risk losing another.
 
-RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
+CRITICAL RESPONSE FORMAT RULES:
+1. Your ENTIRE response must be valid JSON - nothing else
+2. Do NOT include any text, explanation, or commentary before or after the JSON
+3. Do NOT wrap the JSON in markdown code blocks (\`\`\`json or \`\`\`)
+4. Do NOT include phrases like "Here is the JSON:" or "Output:"
+5. Start your response IMMEDIATELY with the opening brace {
+6. Ensure all strings are properly escaped (use \\" for quotes, \\n for newlines)
 
-Output ONLY valid JSON matching this structure:
+Output this exact JSON structure:
 {
   "player": {
     "attribute_name": {
@@ -383,38 +395,42 @@ CONFLICT TYPES TO USE:
 - Loyalty vs Morality (help a friend do wrong vs betray them)
 - Present vs Future (quick fix vs long-term solution)
 
-RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no commentary, no markdown code blocks, no text before or after the JSON. Your entire response must be parseable JSON starting with { and ending with }.
+CRITICAL RESPONSE FORMAT RULES:
+1. Your ENTIRE response must be valid JSON - nothing else
+2. Do NOT include any text, explanation, or commentary before or after the JSON
+3. Do NOT wrap the JSON in markdown code blocks (\`\`\`json or \`\`\`)
+4. Do NOT include phrases like "Here is the JSON:" or "Output:"
+5. Start your response IMMEDIATELY with the opening brace {
+6. Ensure all strings are properly escaped (use \\" for quotes, \\n for newlines inside strings)
+7. Keep descriptions concise to avoid hitting token limits
 
-Output ONLY valid JSON matching this structure:
+Output this exact JSON structure (required fields shown):
 {
   "nodes": [
     {
       "id": "node_id",
-      "type": "entry|story|branch|converge|ending",
+      "type": "entry",
+      "title": "Entry Title",
+      "preview": "Short preview text",
       "description": "Scene description",
-      "title": "For entry/ending nodes",
-      "preview": "For entry nodes",
-      "beat": "For story nodes - the key moment",
-      "endingType": "good|neutral|bad|secret - for endings",
-      "epilogue": "For ending nodes",
       "characters": ["character_id"],
-      "context": {
-        "location": "Where this happens",
-        "mood": "emotional tone",
-        "timeOfDay": "time"
-      },
-      "onEnter": [
-        { "type": "set|add|subtract", "target": "flags.example", "value": true }
-      ],
-      "conditions": [
-        {
-          "targetNodeId": "ending_id",
-          "conditions": [
-            { "type": "flag", "target": "example", "operator": "==", "value": true }
-          ],
-          "isDefault": false
-        }
-      ]
+      "context": { "location": "Place", "mood": "tone", "timeOfDay": "time" }
+    },
+    {
+      "id": "story_node_id",
+      "type": "story",
+      "beat": "Key story moment",
+      "description": "What happens",
+      "characters": ["character_id"],
+      "context": { "location": "Place", "mood": "tone" }
+    },
+    {
+      "id": "ending_id",
+      "type": "ending",
+      "title": "Ending Title",
+      "endingType": "good",
+      "description": "Ending scene",
+      "epilogue": "What happens after"
     }
   ],
   "edges": [
@@ -422,16 +438,11 @@ Output ONLY valid JSON matching this structure:
       "id": "edge_id",
       "from": "source_node",
       "to": "target_node",
-      "choiceType": "agree|refuse|question|deflect|confront|comfort|investigate|leave",
-      "choiceHint": "What the player says/does",
-      "conflict": "What makes this choice hard",
+      "choiceType": "investigate",
+      "choiceHint": "What player says/does",
+      "conflict": "The dilemma",
       "benefit": "What you gain",
-      "cost": "What you risk/lose",
-      "conditions": [],
-      "effects": [
-        { "type": "add", "target": "character.name.relationship", "value": 10 }
-      ],
-      "priority": 1
+      "cost": "What you risk"
     }
   ]
 }`;
@@ -500,7 +511,11 @@ Generate the complete graph JSON:`;
     const systemPrompt = `You are a narrative designer improving a single scene in an interactive story.
 The scene should create conflict and difficult choices.
 
-RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.`;
+CRITICAL RESPONSE FORMAT RULES:
+1. Your ENTIRE response must be valid JSON - nothing else
+2. Do NOT include any text, explanation, or commentary before or after the JSON
+3. Do NOT wrap the JSON in markdown code blocks
+4. Start your response IMMEDIATELY with the opening brace {`;
 
     const userPrompt = `Regenerate this scene:
 
@@ -553,7 +568,11 @@ Generate the node JSON:`;
     const systemPrompt = `You are a narrative designer improving a single choice in an interactive story.
 The choice should present a meaningful dilemma with clear trade-offs.
 
-RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.`;
+CRITICAL RESPONSE FORMAT RULES:
+1. Your ENTIRE response must be valid JSON - nothing else
+2. Do NOT include any text, explanation, or commentary before or after the JSON
+3. Do NOT wrap the JSON in markdown code blocks
+4. Start your response IMMEDIATELY with the opening brace {`;
 
     const userPrompt = `Regenerate this choice:
 
@@ -663,25 +682,114 @@ Generate the edge JSON:`;
   }
 
   /**
+   * Clean response of BOM, control characters, and other problematic content
+   */
+  private cleanResponseForParsing(response: string): string {
+    // Remove BOM (Byte Order Mark)
+    let cleaned = response.replace(/^\uFEFF/, '');
+
+    // Remove null characters
+    cleaned = cleaned.replace(/\x00/g, '');
+
+    // Remove other control characters except newline, carriage return, tab
+    cleaned = cleaned.replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+
+    return cleaned;
+  }
+
+  /**
+   * Attempt to repair truncated JSON by closing open brackets
+   */
+  private repairTruncatedJson(json: string): string | null {
+    // Count open brackets that need to be closed
+    let depth = 0;
+    let inString = false;
+    let escapeNext = false;
+    const openBrackets: string[] = [];
+
+    for (let i = 0; i < json.length; i++) {
+      const char = json[i];
+
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === '\\' && inString) {
+        escapeNext = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+
+      if (!inString) {
+        if (char === '{' || char === '[') {
+          openBrackets.push(char);
+          depth++;
+        } else if (char === '}' || char === ']') {
+          openBrackets.pop();
+          depth--;
+        }
+      }
+    }
+
+    // If we're still in a string, close it first
+    let repaired = json;
+    if (inString) {
+      repaired += '"';
+    }
+
+    // Remove any trailing incomplete key-value pairs or array elements
+    // Look for trailing comma and incomplete content
+    repaired = repaired.replace(/,\s*$/, '');
+    repaired = repaired.replace(/,\s*"[^"]*$/, ''); // Remove incomplete string key
+    repaired = repaired.replace(/:\s*$/, ': null'); // Complete incomplete value
+    repaired = repaired.replace(/:\s*"[^"]*$/, ': ""'); // Complete incomplete string value
+
+    // Close remaining open brackets in reverse order
+    for (let i = openBrackets.length - 1; i >= 0; i--) {
+      const bracket = openBrackets[i];
+      repaired += bracket === '{' ? '}' : ']';
+    }
+
+    return repaired;
+  }
+
+  /**
    * Parse JSON from AI response, handling various formats and edge cases
    */
   private parseJSON(response: string): any {
+    // Pre-process: clean the response
+    const cleanedResponse = this.cleanResponseForParsing(response);
+
+    console.log(`[StoryGenerator] parseJSON: Attempting to parse response (${cleanedResponse.length} chars)`);
+
     // Strategy 1: Try to extract JSON from markdown code blocks first
-    const codeBlockMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const codeBlockMatch = cleanedResponse.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (codeBlockMatch) {
       const extracted = codeBlockMatch[1].trim();
+      console.log('[StoryGenerator] parseJSON: Found code block, attempting parse');
       const result = this.tryParseJson(extracted);
-      if (result !== null) return result;
+      if (result !== null) {
+        console.log('[StoryGenerator] parseJSON: Successfully parsed from code block');
+        return result;
+      }
     }
 
     // Strategy 2: Try the raw response after basic cleanup
-    let cleaned = response.trim();
+    let cleaned = cleanedResponse.trim();
     // Remove any leading/trailing markdown code block markers
     cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
     cleaned = cleaned.trim();
 
     const directResult = this.tryParseJson(cleaned);
-    if (directResult !== null) return directResult;
+    if (directResult !== null) {
+      console.log('[StoryGenerator] parseJSON: Successfully parsed cleaned response directly');
+      return directResult;
+    }
 
     // Strategy 3: Find the start of JSON and extract balanced brackets
     // Look for the first { or [ that starts a JSON structure
@@ -699,17 +807,32 @@ Generate the edge JSON:`;
 
     if (jsonStart >= 0) {
       const jsonSubstring = cleaned.slice(jsonStart);
+      console.log(`[StoryGenerator] parseJSON: Found JSON start at position ${jsonStart}`);
       const balancedJson = this.extractBalancedJson(jsonSubstring);
       if (balancedJson) {
         const result = this.tryParseJson(balancedJson);
-        if (result !== null) return result;
+        if (result !== null) {
+          console.log('[StoryGenerator] parseJSON: Successfully parsed balanced JSON from cleaned response');
+          return result;
+        }
+      } else {
+        // Balanced JSON extraction failed - likely truncated response
+        console.warn('[StoryGenerator] parseJSON: Balanced JSON extraction failed, attempting repair');
+        const repaired = this.repairTruncatedJson(jsonSubstring);
+        if (repaired) {
+          const result = this.tryParseJson(repaired);
+          if (result !== null) {
+            console.log('[StoryGenerator] parseJSON: Successfully parsed repaired truncated JSON');
+            return result;
+          }
+        }
       }
     }
 
     // Strategy 4: Try the original response with same approach
-    if (response !== cleaned) {
-      const origJsonStartObj = response.indexOf('{');
-      const origJsonStartArr = response.indexOf('[');
+    if (cleanedResponse !== cleaned) {
+      const origJsonStartObj = cleanedResponse.indexOf('{');
+      const origJsonStartArr = cleanedResponse.indexOf('[');
 
       let origJsonStart = -1;
       if (origJsonStartObj >= 0 && origJsonStartArr >= 0) {
@@ -721,11 +844,24 @@ Generate the edge JSON:`;
       }
 
       if (origJsonStart >= 0) {
-        const jsonSubstring = response.slice(origJsonStart);
+        const jsonSubstring = cleanedResponse.slice(origJsonStart);
         const balancedJson = this.extractBalancedJson(jsonSubstring);
         if (balancedJson) {
           const result = this.tryParseJson(balancedJson);
-          if (result !== null) return result;
+          if (result !== null) {
+            console.log('[StoryGenerator] parseJSON: Successfully parsed balanced JSON from original response');
+            return result;
+          }
+        } else {
+          // Try repair on original too
+          const repaired = this.repairTruncatedJson(jsonSubstring);
+          if (repaired) {
+            const result = this.tryParseJson(repaired);
+            if (result !== null) {
+              console.log('[StoryGenerator] parseJSON: Successfully parsed repaired truncated JSON from original');
+              return result;
+            }
+          }
         }
       }
     }
@@ -739,36 +875,84 @@ Generate the edge JSON:`;
     ];
 
     for (const pattern of prefixPatterns) {
-      const match = response.match(pattern);
+      const match = cleanedResponse.match(pattern);
       if (match && match.index !== undefined) {
-        const afterPrefix = response.slice(match.index + match[0].length).trim();
-        const startChar = afterPrefix.indexOf('{') === 0 || afterPrefix.indexOf('[') === 0 ? 0 : -1;
-        if (startChar === 0) {
+        const afterPrefix = cleanedResponse.slice(match.index + match[0].length).trim();
+        if (afterPrefix.startsWith('{') || afterPrefix.startsWith('[')) {
           const balancedJson = this.extractBalancedJson(afterPrefix);
           if (balancedJson) {
             const result = this.tryParseJson(balancedJson);
-            if (result !== null) return result;
+            if (result !== null) {
+              console.log('[StoryGenerator] parseJSON: Successfully parsed JSON after prefix pattern');
+              return result;
+            }
+          }
+        }
+      }
+    }
+
+    // Strategy 6: Last resort - try to find any valid JSON object in the response
+    // Look for patterns like {"nodes": or {"characters":
+    const knownRootKeys = ['nodes', 'edges', 'characters', 'conflicts', 'rules', 'dimensions', 'endings', 'player', 'flags', 'resources'];
+    for (const key of knownRootKeys) {
+      const keyPattern = new RegExp(`\\{\\s*"${key}"\\s*:`);
+      const keyMatch = cleanedResponse.match(keyPattern);
+      if (keyMatch && keyMatch.index !== undefined) {
+        const fromKey = cleanedResponse.slice(keyMatch.index);
+        const balancedJson = this.extractBalancedJson(fromKey);
+        if (balancedJson) {
+          const result = this.tryParseJson(balancedJson);
+          if (result !== null) {
+            console.log(`[StoryGenerator] parseJSON: Successfully parsed JSON starting with key "${key}"`);
+            return result;
+          }
+        } else {
+          // Try repair
+          const repaired = this.repairTruncatedJson(fromKey);
+          if (repaired) {
+            const result = this.tryParseJson(repaired);
+            if (result !== null) {
+              console.log(`[StoryGenerator] parseJSON: Successfully parsed repaired JSON starting with key "${key}"`);
+              return result;
+            }
           }
         }
       }
     }
 
     // Log detailed error information for debugging
-    console.error('[StoryGenerator] Failed to parse AI response as JSON');
+    console.error('[StoryGenerator] ============ JSON PARSING FAILED ============');
     console.error('[StoryGenerator] Response length:', response.length);
-    console.error('[StoryGenerator] Response preview (first 1000 chars):', response.slice(0, 1000));
-    console.error('[StoryGenerator] Response preview (last 500 chars):', response.slice(-500));
-    throw new Error('Failed to parse AI response as JSON');
+    console.error('[StoryGenerator] Cleaned response length:', cleanedResponse.length);
+    console.error('[StoryGenerator] First 100 chars:', JSON.stringify(cleanedResponse.slice(0, 100)));
+    console.error('[StoryGenerator] Last 100 chars:', JSON.stringify(cleanedResponse.slice(-100)));
+    console.error('[StoryGenerator] Response preview (first 1500 chars):');
+    console.error(cleanedResponse.slice(0, 1500));
+    console.error('[StoryGenerator] Response preview (last 500 chars):');
+    console.error(cleanedResponse.slice(-500));
+    console.error('[StoryGenerator] ============================================');
+
+    // Provide more specific error message
+    if (cleanedResponse.length === 0) {
+      throw new Error('Failed to parse AI response as JSON: Response was empty');
+    } else if (jsonStart === -1) {
+      throw new Error('Failed to parse AI response as JSON: No JSON object or array found in response');
+    } else {
+      throw new Error('Failed to parse AI response as JSON: Response contains malformed or truncated JSON');
+    }
   }
 
   /**
    * Try to parse JSON with multiple fix strategies
    */
   private tryParseJson(str: string): any | null {
+    let lastError: Error | null = null;
+
     // Try direct parse first
     try {
       return JSON.parse(str);
-    } catch {
+    } catch (e) {
+      lastError = e as Error;
       // Continue to fixes
     }
 
@@ -801,8 +985,131 @@ Generate the edge JSON:`;
     try {
       return JSON.parse(withFixedNewlines);
     } catch {
-      return null;
+      // Continue
     }
+
+    // Try fixing common escape issues
+    const withFixedEscapes = this.fixEscapeIssues(withFixedNewlines);
+    try {
+      return JSON.parse(withFixedEscapes);
+    } catch {
+      // Continue
+    }
+
+    // Try removing any trailing incomplete content after the last complete value
+    const trimmedToLastComplete = this.trimToLastCompleteValue(withFixedEscapes);
+    if (trimmedToLastComplete !== withFixedEscapes) {
+      try {
+        return JSON.parse(trimmedToLastComplete);
+      } catch {
+        // Continue
+      }
+    }
+
+    // Log the last error for debugging if all strategies failed
+    if (lastError) {
+      console.warn(`[StoryGenerator] tryParseJson: All strategies failed. Last error: ${lastError.message}`);
+    }
+
+    return null;
+  }
+
+  /**
+   * Fix common escape issues in JSON strings
+   */
+  private fixEscapeIssues(json: string): string {
+    // Fix single backslashes that aren't valid escapes
+    // Valid escapes: \", \\, \/, \b, \f, \n, \r, \t, \uXXXX
+    let result = '';
+    let inString = false;
+    let i = 0;
+
+    while (i < json.length) {
+      const char = json[i];
+
+      if (char === '"' && (i === 0 || json[i - 1] !== '\\')) {
+        inString = !inString;
+        result += char;
+        i++;
+        continue;
+      }
+
+      if (inString && char === '\\' && i + 1 < json.length) {
+        const nextChar = json[i + 1];
+        // Check if it's a valid escape sequence
+        if (['\"', '\\', '/', 'b', 'f', 'n', 'r', 't'].includes(nextChar)) {
+          result += char;
+          i++;
+          continue;
+        }
+        // Check for unicode escape
+        if (nextChar === 'u' && i + 5 < json.length) {
+          const hexPart = json.slice(i + 2, i + 6);
+          if (/^[0-9a-fA-F]{4}$/.test(hexPart)) {
+            result += char;
+            i++;
+            continue;
+          }
+        }
+        // Invalid escape - double the backslash to escape it
+        result += '\\\\';
+        i++;
+        continue;
+      }
+
+      result += char;
+      i++;
+    }
+
+    return result;
+  }
+
+  /**
+   * Trim JSON to the last complete value by finding balanced structure
+   */
+  private trimToLastCompleteValue(json: string): string {
+    // Find the last position where the JSON could be complete
+    // This handles cases where the response was cut off mid-value
+    let depth = 0;
+    let inString = false;
+    let escapeNext = false;
+    let lastCompletePosition = 0;
+
+    for (let i = 0; i < json.length; i++) {
+      const char = json[i];
+
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === '\\' && inString) {
+        escapeNext = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+
+      if (!inString) {
+        if (char === '{' || char === '[') {
+          depth++;
+        } else if (char === '}' || char === ']') {
+          depth--;
+          if (depth === 0) {
+            lastCompletePosition = i + 1;
+          }
+        }
+      }
+    }
+
+    if (lastCompletePosition > 0 && lastCompletePosition < json.length) {
+      return json.slice(0, lastCompletePosition);
+    }
+
+    return json;
   }
 
   /**
@@ -914,6 +1221,7 @@ Generate the edge JSON:`;
 
   /**
    * Extract balanced JSON by tracking bracket depth
+   * Returns null if brackets are not balanced (truncated response)
    */
   private extractBalancedJson(str: string): string | null {
     const startChar = str[0];
@@ -956,8 +1264,10 @@ Generate the edge JSON:`;
       }
     }
 
-    // If we couldn't find balanced brackets, return the original
-    return str;
+    // If we couldn't find balanced brackets, the JSON is incomplete/truncated
+    // Return null to indicate parsing failure rather than returning invalid JSON
+    console.warn(`[StoryGenerator] extractBalancedJson: Unbalanced brackets detected (depth=${depth}, inString=${inString})`);
+    return null;
   }
 
   /**
@@ -1031,7 +1341,11 @@ Generate the edge JSON:`;
     const systemPrompt = `You are designing value conflicts for an interactive narrative.
 Each conflict should represent a genuine moral dilemma where both values are legitimate.
 
-RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
+CRITICAL RESPONSE FORMAT RULES:
+1. Your ENTIRE response must be valid JSON - nothing else
+2. Do NOT include any text, explanation, or commentary before or after the JSON
+3. Do NOT wrap the JSON in markdown code blocks
+4. Start your response IMMEDIATELY with the opening brace {
 
 Output ONLY valid JSON matching this structure:
 {
@@ -1081,7 +1395,11 @@ Generate the enhanced conflicts JSON:`;
     const systemPrompt = `You are designing characters for a value-driven interactive narrative.
 Each character should embody specific values and have internal contradictions.
 
-RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
+CRITICAL RESPONSE FORMAT RULES:
+1. Your ENTIRE response must be valid JSON - nothing else
+2. Do NOT include any text, explanation, or commentary before or after the JSON
+3. Do NOT wrap the JSON in markdown code blocks
+4. Start your response IMMEDIATELY with the opening brace {
 
 Output ONLY valid JSON matching this structure:
 {
@@ -1145,7 +1463,11 @@ Generate the enhanced characters JSON:`;
     const systemPrompt = `You are designing the causal rules for an interactive narrative.
 These rules govern how player actions lead to consequences.
 
-RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
+CRITICAL RESPONSE FORMAT RULES:
+1. Your ENTIRE response must be valid JSON - nothing else
+2. Do NOT include any text, explanation, or commentary before or after the JSON
+3. Do NOT wrap the JSON in markdown code blocks
+4. Start your response IMMEDIATELY with the opening brace {
 
 Output ONLY valid JSON matching this structure:
 {
@@ -1199,7 +1521,11 @@ Generate the enhanced rules JSON:`;
     const systemPrompt = `You are designing the ending system for an interactive narrative.
 Endings are determined by the player's position on multiple dimensions.
 
-RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
+CRITICAL RESPONSE FORMAT RULES:
+1. Your ENTIRE response must be valid JSON - nothing else
+2. Do NOT include any text, explanation, or commentary before or after the JSON
+3. Do NOT wrap the JSON in markdown code blocks
+4. Start your response IMMEDIATELY with the opening brace {
 
 Output ONLY valid JSON matching this structure:
 {
@@ -1266,7 +1592,11 @@ Generate the dimensions and endings JSON:`;
     const systemPrompt = `You are defining the central dramatic tension for an interactive narrative.
 The core tension should drive every major decision in the story.
 
-RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
+CRITICAL RESPONSE FORMAT RULES:
+1. Your ENTIRE response must be valid JSON - nothing else
+2. Do NOT include any text, explanation, or commentary before or after the JSON
+3. Do NOT wrap the JSON in markdown code blocks
+4. Start your response IMMEDIATELY with the opening brace {
 
 Output ONLY valid JSON matching this structure:
 {
