@@ -187,14 +187,14 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
         // Need at least 5 world rules
         return worldRules.filter(r => r.rule.trim()).length >= 5;
       case 'endings':
-        // Need at least 2 ending dimensions
-        return endingDimensions.filter(d => d.name.trim() && d.lowEnd.trim() && d.highEnd.trim()).length >= 2;
+        // Need at least 2 endings with descriptions
+        return endings.filter(e => e.description.trim()).length >= 2;
       case 'config':
         return true;
       default:
         return false;
     }
-  }, [step, title, plot, coreTension, beginningScenario, tags, valueConflicts, characters, worldRules, endingDimensions]);
+  }, [step, title, plot, coreTension, beginningScenario, tags, valueConflicts, characters, worldRules, endings]);
 
   const goNext = () => {
     const nextIndex = currentStepIndex + 1;
