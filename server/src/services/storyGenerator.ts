@@ -141,6 +141,19 @@ const DEFAULT_CONFIG: GraphGenerationConfig = {
   includeConvergeNodes: true,
 };
 
+/**
+ * Progress event types for streaming story generation
+ */
+export type StreamingProgressEvent =
+  | { type: 'start'; message: string; totalSteps: number }
+  | { type: 'step'; step: number; message: string; data?: unknown }
+  | { type: 'node_generated'; node: GeneratedNode }
+  | { type: 'edge_generated'; edge: GeneratedEdge }
+  | { type: 'branch_start'; branchIndex: number; totalBranches: number; sourceNode: string }
+  | { type: 'branch_complete'; branchIndex: number; nodesGenerated: number; edgesGenerated: number }
+  | { type: 'error'; message: string; recoverable: boolean }
+  | { type: 'complete'; graph: GeneratedGraph };
+
 export class StoryGeneratorService {
   private aiService: AIService;
 
@@ -223,6 +236,367 @@ export class StoryGeneratorService {
 
     console.log(`[StoryGenerator] Story generation complete for: "${input.title}"`);
     return graph;
+  }
+
+  /**
+   * Generate a complete story graph using step-by-step streaming approach
+   * This prevents context length issues by generating nodes incrementally
+   */
+  async *generateStoryGraphStreaming(
+    input: StoryCreationInput,
+    config: Partial<GraphGenerationConfig> = {}
+  ): AsyncGenerator<StreamingProgressEvent, GeneratedGraph, unknown> {
+    const fullConfig = { ...DEFAULT_CONFIG, ...config };
+
+    console.log(`[StoryGenerator] Starting streaming story generation for: "${input.title}"`);
+
+    // Calculate total steps: characters + world state + skeleton + branches
+    const estimatedBranches = fullConfig.minStoryNodes;
+    const totalSteps = 3 + estimatedBranches; // 3 base steps + branch generation
+
+    yield {
+      type: 'start',
+      message: `Starting story generation for "${input.title}"`,
+      totalSteps,
+    };
+
+    // Step 1: Generate characters
+    yield { type: 'step', step: 1, message: 'Generating characters...' };
+    let characters: GeneratedCharacter[];
+    try {
+      characters = await this.generateCharacters(input);
+      yield { type: 'step', step: 1, message: `Generated ${characters.length} characters`, data: characters };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      yield { type: 'error', message: `Character generation failed: ${message}`, recoverable: false };
+      throw new Error(`Character generation failed: ${message}`);
+    }
+
+    // Step 2: Generate world state
+    yield { type: 'step', step: 2, message: 'Generating world state...' };
+    let worldState: GeneratedWorldState;
+    try {
+      worldState = await this.generateWorldState(input, characters);
+      yield { type: 'step', step: 2, message: 'World state generated', data: worldState };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      yield { type: 'error', message: `World state generation failed: ${message}`, recoverable: false };
+      throw new Error(`World state generation failed: ${message}`);
+    }
+
+    // Step 3: Generate story skeleton (entry nodes, main path, ending nodes)
+    yield { type: 'step', step: 3, message: 'Generating story skeleton...' };
+    let skeleton: { nodes: GeneratedNode[]; edges: GeneratedEdge[] };
+    try {
+      skeleton = await this.generateStorySkeleton(input, characters, worldState, fullConfig);
+      yield { type: 'step', step: 3, message: `Generated skeleton with ${skeleton.nodes.length} nodes`, data: skeleton };
+
+      // Emit each node from skeleton
+      for (const node of skeleton.nodes) {
+        yield { type: 'node_generated', node };
+      }
+      for (const edge of skeleton.edges) {
+        yield { type: 'edge_generated', edge };
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      yield { type: 'error', message: `Skeleton generation failed: ${message}`, recoverable: false };
+      throw new Error(`Skeleton generation failed: ${message}`);
+    }
+
+    // Step 4+: Generate branches for each story node
+    const allNodes = [...skeleton.nodes];
+    const allEdges = [...skeleton.edges];
+    const storyNodes = skeleton.nodes.filter(n => n.type === 'story');
+
+    for (let i = 0; i < storyNodes.length; i++) {
+      const node = storyNodes[i];
+      const stepNum = 4 + i;
+
+      yield {
+        type: 'branch_start',
+        branchIndex: i + 1,
+        totalBranches: storyNodes.length,
+        sourceNode: node.id,
+      };
+      yield { type: 'step', step: stepNum, message: `Generating branches for "${node.title || node.id}"...` };
+
+      try {
+        const branchResult = await this.generateBranchForNode(
+          input, characters, worldState, fullConfig,
+          node, allNodes, allEdges
+        );
+
+        // Add new nodes and edges
+        for (const newNode of branchResult.nodes) {
+          if (!allNodes.find(n => n.id === newNode.id)) {
+            allNodes.push(newNode);
+            yield { type: 'node_generated', node: newNode };
+          }
+        }
+        for (const newEdge of branchResult.edges) {
+          if (!allEdges.find(e => e.id === newEdge.id)) {
+            allEdges.push(newEdge);
+            yield { type: 'edge_generated', edge: newEdge };
+          }
+        }
+
+        yield {
+          type: 'branch_complete',
+          branchIndex: i + 1,
+          nodesGenerated: branchResult.nodes.length,
+          edgesGenerated: branchResult.edges.length,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        yield {
+          type: 'error',
+          message: `Branch generation for "${node.id}" failed: ${message}`,
+          recoverable: true,
+        };
+        // Continue with other branches even if one fails
+      }
+    }
+
+    // Create the complete graph
+    const graph: GeneratedGraph = {
+      metadata: {
+        id: this.generateId(input.title),
+        title: input.title,
+        description: input.plot,
+        author: 'User Created',
+        version: '1.0.0',
+        tags: input.tags,
+      },
+      characters,
+      worldState,
+      nodes: allNodes,
+      edges: allEdges,
+    };
+
+    // Validate and add warnings
+    graph.warnings = this.validateGraph(graph);
+
+    yield { type: 'complete', graph };
+    console.log(`[StoryGenerator] Streaming story generation complete: ${allNodes.length} nodes, ${allEdges.length} edges`);
+
+    return graph;
+  }
+
+  /**
+   * Generate the story skeleton: entry nodes, main story path, and ending nodes
+   * This is a smaller, focused generation that establishes the core structure
+   */
+  private async generateStorySkeleton(
+    input: StoryCreationInput,
+    characters: GeneratedCharacter[],
+    worldState: GeneratedWorldState,
+    config: GraphGenerationConfig
+  ): Promise<{ nodes: GeneratedNode[]; edges: GeneratedEdge[] }> {
+    const systemPrompt = `You are a master narrative designer creating the SKELETON of an interactive story.
+Your goal is to create the core structure: entry points, main story beats, and endings.
+DO NOT create branch paths yet - only the main spine of the story.
+
+CRITICAL DESIGN PRINCIPLES:
+1. Create a clear narrative arc from beginning to end
+2. Each story node represents a KEY MOMENT in the story
+3. Entry nodes introduce the player to the world
+4. Story nodes contain the main beats/scenes
+5. Ending nodes conclude the story
+
+CRITICAL RESPONSE FORMAT RULES:
+1. Your ENTIRE response must be valid JSON - nothing else
+2. Do NOT include any text before or after the JSON
+3. Do NOT wrap the JSON in markdown code blocks
+4. Start your response IMMEDIATELY with the opening brace {
+5. Keep descriptions CONCISE (1-2 sentences max) to avoid token limits
+
+Output this exact JSON structure:
+{
+  "nodes": [
+    {
+      "id": "entry_1",
+      "type": "entry",
+      "title": "Entry Title",
+      "preview": "Short preview",
+      "description": "Brief scene description",
+      "characters": ["character_id"],
+      "context": { "location": "Place", "mood": "tone" }
+    },
+    {
+      "id": "story_1",
+      "type": "story",
+      "title": "Scene Title",
+      "beat": "Key story moment",
+      "description": "What happens",
+      "characters": ["character_id"],
+      "context": { "location": "Place", "mood": "tone" }
+    },
+    {
+      "id": "ending_good",
+      "type": "ending",
+      "title": "Ending Title",
+      "endingType": "good",
+      "description": "Ending scene",
+      "epilogue": "Brief epilogue"
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_1",
+      "from": "entry_1",
+      "to": "story_1",
+      "choiceType": "action_type",
+      "choiceHint": "What happens"
+    }
+  ]
+}`;
+
+    const userPrompt = `Create the SKELETON (main spine) for this story:
+
+TITLE: ${input.title}
+PLOT: ${input.plot}
+${input.coreTension ? `CORE TENSION: ${input.coreTension}` : ''}
+BEGINNING: ${input.beginningScenario}
+
+ENDINGS NEEDED:
+${input.endingScenarios.map(e => `- ${e.type.toUpperCase()}: ${e.description}`).join('\n')}
+
+SETTING: ${input.worldSettings.setting}
+MOOD: ${input.worldSettings.mood}
+CHARACTERS: ${characters.map(c => `${c.name} (${c.id})`).join(', ')}
+
+REQUIREMENTS:
+- Create ${config.entryScenarios} entry node(s)
+- Create ${Math.min(config.minStoryNodes, 5)} main story nodes (key scenes only)
+- Create ${input.endingScenarios.length} ending nodes
+- Connect nodes with simple edges (ONE path from entry to each ending)
+- Keep descriptions SHORT - branches will be added later
+
+Generate the skeleton JSON:`;
+
+    const response = await this.aiService.complete({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.7,
+      maxTokens: 3000,
+    });
+
+    return this.parseJSON(response);
+  }
+
+  /**
+   * Generate branches and additional choices for a specific story node
+   * This creates the 3 choices per node and any intermediate nodes needed
+   */
+  private async generateBranchForNode(
+    input: StoryCreationInput,
+    characters: GeneratedCharacter[],
+    worldState: GeneratedWorldState,
+    config: GraphGenerationConfig,
+    sourceNode: GeneratedNode,
+    existingNodes: GeneratedNode[],
+    existingEdges: GeneratedEdge[]
+  ): Promise<{ nodes: GeneratedNode[]; edges: GeneratedEdge[] }> {
+    // Find what edges already exist from this node
+    const existingOutgoingEdges = existingEdges.filter(e => e.from === sourceNode.id);
+    const edgesNeeded = 3 - existingOutgoingEdges.length;
+
+    if (edgesNeeded <= 0) {
+      return { nodes: [], edges: [] };
+    }
+
+    // Find potential target nodes (existing nodes this could connect to)
+    const potentialTargets = existingNodes
+      .filter(n => n.id !== sourceNode.id && n.type !== 'entry')
+      .map(n => `${n.id}: ${n.title || n.description?.slice(0, 50)}`);
+
+    const systemPrompt = `You are a narrative designer adding BRANCHING CHOICES to a story node.
+Create meaningful choices that lead to different outcomes.
+
+CRITICAL DESIGN PRINCIPLES:
+1. NO PERFECT CHOICES - Every option has trade-offs
+2. Each choice should feel DISTINCT (not just different wording)
+3. Choices can lead to existing nodes OR create new intermediate nodes
+4. Include conflict, benefit, and cost for each choice
+
+CRITICAL RESPONSE FORMAT RULES:
+1. Your ENTIRE response must be valid JSON - nothing else
+2. Do NOT include any text before or after the JSON
+3. Do NOT wrap the JSON in markdown code blocks
+4. Start your response IMMEDIATELY with the opening brace {
+5. Keep descriptions VERY SHORT
+
+Output this exact JSON structure:
+{
+  "nodes": [
+    {
+      "id": "new_node_id",
+      "type": "story",
+      "title": "Scene Title",
+      "beat": "What happens",
+      "description": "Brief description",
+      "characters": ["character_id"],
+      "context": { "location": "Place", "mood": "tone" }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_id",
+      "from": "source_node_id",
+      "to": "target_node_id",
+      "choiceType": "investigate|confront|help|betray|etc",
+      "choiceHint": "What the player does",
+      "conflict": "The dilemma",
+      "benefit": "What you gain",
+      "cost": "What you risk"
+    }
+  ]
+}`;
+
+    const userPrompt = `Add ${edgesNeeded} branching choice(s) to this story node:
+
+SOURCE NODE:
+ID: ${sourceNode.id}
+Title: ${sourceNode.title || 'Untitled'}
+Description: ${sourceNode.description || sourceNode.beat || 'No description'}
+Characters present: ${sourceNode.characters?.join(', ') || 'None'}
+
+STORY CONTEXT:
+Title: ${input.title}
+Themes: ${input.worldSettings.themes.join(', ')}
+Conflict intensity: ${Math.round(config.conflictIntensity * 100)}%
+
+EXISTING EDGES FROM THIS NODE:
+${existingOutgoingEdges.map(e => `- To "${e.to}": "${e.choiceHint}"`).join('\n') || 'None yet'}
+
+EXISTING NODES TO POTENTIALLY CONNECT TO:
+${potentialTargets.slice(0, 10).join('\n')}
+
+AVAILABLE STATE VARIABLES:
+${Object.keys(worldState.player).join(', ')}
+
+REQUIREMENTS:
+- Create ${edgesNeeded} NEW choice(s) that are DIFFERENT from existing edges
+- Each choice needs a dilemma with clear trade-offs
+- You can create 0-2 new intermediate nodes if needed
+- Prefer connecting to existing nodes when it makes narrative sense
+- If creating new nodes, they should eventually connect to existing nodes
+
+Generate the branches JSON:`;
+
+    const response = await this.aiService.complete({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.8,
+      maxTokens: 2000,
+    });
+
+    const result = this.parseJSON(response);
+    return {
+      nodes: result.nodes || [],
+      edges: result.edges || [],
+    };
   }
 
   /**

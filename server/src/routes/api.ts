@@ -3,8 +3,9 @@
  */
 
 import { Router } from 'express';
+import type { Response } from 'express';
 import { AIService } from '../services/ai.js';
-import { StoryGeneratorService } from '../services/storyGenerator.js';
+import { StoryGeneratorService, type StreamingProgressEvent } from '../services/storyGenerator.js';
 import type { StoryCreationInput, GraphGenerationConfig, GeneratedGraph } from '../types/storyCreation.js';
 
 // In-memory storage for user-created stories (in production, use a database)
@@ -150,6 +151,151 @@ export function createApiRoutes(): Router {
         error: 'Failed to generate story',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
+    }
+  });
+
+  /**
+   * POST /api/generate-story-stream
+   * Generate a story graph with Server-Sent Events for real-time progress updates
+   * This uses a step-by-step approach to prevent context length issues
+   */
+  router.post('/generate-story-stream', async (req, res: Response) => {
+    // Set up SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+    res.flushHeaders();
+
+    // Helper to send SSE events
+    const sendEvent = (event: StreamingProgressEvent) => {
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    };
+
+    try {
+      const { input, config } = req.body as {
+        input: StoryCreationInput;
+        config?: Partial<GraphGenerationConfig>;
+      };
+
+      if (!input || !input.title || !input.plot) {
+        sendEvent({
+          type: 'error',
+          message: 'Missing required fields: input.title, input.plot',
+          recoverable: false,
+        });
+        res.end();
+        return;
+      }
+
+      console.log(`Streaming story generation: "${input.title}"`);
+
+      // Use the streaming generator
+      const generator = storyGenerator.generateStoryGraphStreaming(input, config);
+
+      for await (const event of generator) {
+        sendEvent(event);
+
+        // Check if client disconnected
+        if (res.writableEnded) {
+          console.log('Client disconnected during story generation');
+          break;
+        }
+      }
+
+      res.end();
+    } catch (error) {
+      console.error('Error in streaming story generation:', error);
+      sendEvent({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        recoverable: false,
+      });
+      res.end();
+    }
+  });
+
+  /**
+   * GET /api/generate-story-stream
+   * Alternative GET endpoint for EventSource compatibility
+   * Query params: input (JSON string), config (JSON string, optional)
+   */
+  router.get('/generate-story-stream', async (req, res: Response) => {
+    // Set up SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    const sendEvent = (event: StreamingProgressEvent) => {
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    };
+
+    try {
+      const inputStr = req.query.input as string;
+      const configStr = req.query.config as string | undefined;
+
+      if (!inputStr) {
+        sendEvent({
+          type: 'error',
+          message: 'Missing required query parameter: input',
+          recoverable: false,
+        });
+        res.end();
+        return;
+      }
+
+      let input: StoryCreationInput;
+      let config: Partial<GraphGenerationConfig> | undefined;
+
+      try {
+        input = JSON.parse(inputStr);
+        if (configStr) {
+          config = JSON.parse(configStr);
+        }
+      } catch {
+        sendEvent({
+          type: 'error',
+          message: 'Invalid JSON in query parameters',
+          recoverable: false,
+        });
+        res.end();
+        return;
+      }
+
+      if (!input.title || !input.plot) {
+        sendEvent({
+          type: 'error',
+          message: 'Missing required fields: input.title, input.plot',
+          recoverable: false,
+        });
+        res.end();
+        return;
+      }
+
+      console.log(`Streaming story generation (GET): "${input.title}"`);
+
+      const generator = storyGenerator.generateStoryGraphStreaming(input, config);
+
+      for await (const event of generator) {
+        sendEvent(event);
+
+        if (res.writableEnded) {
+          console.log('Client disconnected during story generation');
+          break;
+        }
+      }
+
+      res.end();
+    } catch (error) {
+      console.error('Error in streaming story generation:', error);
+      sendEvent({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        recoverable: false,
+      });
+      res.end();
     }
   });
 

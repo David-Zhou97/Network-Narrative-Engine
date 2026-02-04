@@ -9,6 +9,11 @@ export interface CompletionRequest {
   maxTokens: number;
 }
 
+export interface StreamingCompletionRequest extends CompletionRequest {
+  onChunk?: (chunk: string) => void;
+  onComplete?: (fullText: string) => void;
+}
+
 export class AIService {
   private apiKey: string | undefined;
   private model: string;
@@ -83,6 +88,101 @@ export class AIService {
         throw error;
       }
       throw new Error('Unknown error during AI request');
+    }
+  }
+
+  /**
+   * Streaming completion - returns chunks as they arrive
+   */
+  async *completeStreaming(request: StreamingCompletionRequest): AsyncGenerator<string, string, unknown> {
+    if (!this.apiKey) {
+      console.warn('ANTHROPIC_API_KEY not configured - AI features disabled');
+      throw new Error('ANTHROPIC_API_KEY not configured. Please set this environment variable to enable AI story generation.');
+    }
+
+    console.log(`Making streaming AI request with model: ${this.model}`);
+
+    try {
+      const response = await fetch(`${this.baseUrl}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: request.maxTokens,
+          temperature: request.temperature,
+          system: request.systemPrompt,
+          stream: true,
+          messages: [
+            {
+              role: 'user',
+              content: request.userPrompt,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Anthropic API error: ${response.status}`, errorText);
+        throw new Error(`AI API error (${response.status}): ${errorText.slice(0, 200)}`);
+      }
+
+      if (!response.body) {
+        throw new Error('Response body is null');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+                const chunk = parsed.delta.text;
+                fullText += chunk;
+                if (request.onChunk) {
+                  request.onChunk(chunk);
+                }
+                yield chunk;
+              }
+            } catch {
+              // Skip non-JSON lines
+            }
+          }
+        }
+      }
+
+      console.log(`Streaming AI response complete (${fullText.length} chars)`);
+      if (request.onComplete) {
+        request.onComplete(fullText);
+      }
+      return fullText;
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('fetch')) {
+          throw new Error(`Network error connecting to AI service: ${error.message}`);
+        }
+        throw error;
+      }
+      throw new Error('Unknown error during streaming AI request');
     }
   }
 }
