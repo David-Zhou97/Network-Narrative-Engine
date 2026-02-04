@@ -599,3 +599,123 @@
     padding: 0.75rem 1.5rem;
   }
 }
+
+/* Value Conflicts */
+.presetSection {
+  background: rgba(30, 30, 50, 0.3);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.presetTitle {
+  color: #9ca3af;
+  font-size: 0.9rem;
+  margin: 0 0 0.75rem;
+  font-weight: 500;
+}
+
+.presetGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.presetButton {
+  padding: 0.5rem 1rem;
+  background: rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 20px;
+  color: #a78bfa;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.presetButton:hover {
+  background: rgba(124, 58, 237, 0.25);
+  border-color: #7c3aed;
+  color: #fff;
+}
+
+.conflictList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.conflictCard {
+  background: rgba(30, 30, 50, 0.5);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.conflictHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.conflictNumber {
+  font-weight: 600;
+  color: #a78bfa;
+}
+
+.conflictFields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.conflictFields .formRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.vsLabel {
+  color: #6b7280;
+  font-size: 0.9rem;
+  padding-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+/* World Rules */
+.rulesList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ruleCard {
+  background: rgba(30, 30, 50, 0.5);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.ruleHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.ruleNumber {
+  font-weight: 600;
+  color: #a78bfa;
+  font-size: 0.9rem;
+}
+
+.ruleFields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ruleFields .formGroup {
+  margin-bottom: 0;
+}
