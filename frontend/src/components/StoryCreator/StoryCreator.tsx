@@ -1,5 +1,12 @@
 /**
  * StoryCreator - Multi-step form for creating AI-generated stories
+ *
+ * New Architecture: Story Seed based creation
+ * - Value Conflicts (3-5 pairs of opposing values)
+ * - Core Tension (central dramatic conflict)
+ * - Characters (with archetype, contradiction, bond)
+ * - World Rules (causal laws governing consequences)
+ * - Ending Dimensions (axes defining outcome space)
  */
 
 import React, { useState, useCallback } from 'react';
@@ -12,9 +19,35 @@ import type {
   WorldSettingsInput,
   GraphGenerationConfig,
   GeneratedGraph,
-  DEFAULT_GRAPH_CONFIG,
 } from '../../../../src/types/storyCreation';
 import styles from './StoryCreator.module.css';
+
+// New architecture types
+interface ValueConflictInput {
+  value1: string;
+  value2: string;
+  description: string;
+}
+
+interface StoryCharacterInput {
+  name: string;
+  archetype: string;
+  contradiction: string;
+  bond: string;
+  traits: string[];
+  description: string;
+}
+
+interface WorldRuleInput {
+  rule: string;
+  category: 'violence' | 'trust' | 'secrets' | 'resources' | 'relationships' | 'time' | 'custom';
+}
+
+interface EndingDimensionInput {
+  name: string;
+  lowEnd: string;
+  highEnd: string;
+}
 
 const DEFAULT_CONFIG: GraphGenerationConfig = {
   minStoryNodes: 8,
@@ -26,12 +59,45 @@ const DEFAULT_CONFIG: GraphGenerationConfig = {
   includeConvergeNodes: true,
 };
 
+const CHARACTER_ARCHETYPES = [
+  { value: 'fallen_idealist', label: 'Fallen Idealist - Once believed, now disillusioned' },
+  { value: 'reluctant_hero', label: 'Reluctant Hero - Doesn\'t want responsibility but has it' },
+  { value: 'trickster', label: 'Trickster - Uses deception, morally ambiguous' },
+  { value: 'mentor', label: 'Mentor - Guides but has own agenda' },
+  { value: 'innocent', label: 'Innocent - Pure but vulnerable' },
+  { value: 'shadow', label: 'Shadow - Represents player\'s darker potential' },
+  { value: 'guardian', label: 'Guardian - Protects something at great cost' },
+  { value: 'shapeshifter', label: 'Shapeshifter - Loyalty uncertain' },
+  { value: 'herald', label: 'Herald - Brings change and challenges' },
+  { value: 'outcast', label: 'Outcast - Rejected by society' },
+  { value: 'redeemer', label: 'Redeemer - Seeks to make amends' },
+  { value: 'avenger', label: 'Avenger - Driven by past wrongs' },
+];
+
+const WORLD_RULE_CATEGORIES = [
+  { value: 'violence', label: 'Violence - Rules about conflict and force' },
+  { value: 'trust', label: 'Trust - Rules about loyalty and betrayal' },
+  { value: 'secrets', label: 'Secrets - Rules about hidden information' },
+  { value: 'resources', label: 'Resources - Rules about scarcity' },
+  { value: 'relationships', label: 'Relationships - Rules about bonds' },
+  { value: 'time', label: 'Time - Rules about passage of time' },
+  { value: 'custom', label: 'Custom - Other rules' },
+];
+
+const COMMON_VALUE_CONFLICTS = [
+  { value1: 'Truth', value2: 'Peace', description: 'Reveal painful truths or maintain harmony' },
+  { value1: 'Loyalty', value2: 'Justice', description: 'Protect loved ones or do what\'s right' },
+  { value1: 'Survival', value2: 'Dignity', description: 'Do whatever it takes or maintain honor' },
+  { value1: 'Freedom', value2: 'Security', description: 'Independence or safety' },
+  { value1: 'Mercy', value2: 'Vengeance', description: 'Forgive or punish' },
+];
+
 interface StoryCreatorProps {
   onBack: () => void;
   onGenerated: (graph: GeneratedGraph) => void;
 }
 
-type Step = 'basics' | 'world' | 'characters' | 'endings' | 'config' | 'generating';
+type Step = 'basics' | 'conflicts' | 'characters' | 'rules' | 'endings' | 'config' | 'generating';
 
 const AVAILABLE_TAGS = [
   'mystery', 'horror', 'sci-fi', 'fantasy', 'romance', 'thriller',
@@ -45,14 +111,16 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState('');
 
-  // Form state
+  // Basic info
   const [title, setTitle] = useState('');
   const [plot, setPlot] = useState('');
+  const [coreTension, setCoreTension] = useState('');
   const [beginningScenario, setBeginningScenario] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'challenging'>('medium');
   const [estimatedMinutes, setEstimatedMinutes] = useState(25);
 
+  // World context
   const [worldSettings, setWorldSettings] = useState<WorldSettingsInput>({
     setting: '',
     timePeriod: '',
@@ -61,6 +129,32 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
     specialRules: '',
   });
 
+  // New architecture: Value Conflicts
+  const [valueConflicts, setValueConflicts] = useState<ValueConflictInput[]>([
+    { value1: '', value2: '', description: '' },
+    { value1: '', value2: '', description: '' },
+    { value1: '', value2: '', description: '' },
+  ]);
+
+  // New architecture: Characters with archetype, contradiction, bond
+  const [storyCharacters, setStoryCharacters] = useState<StoryCharacterInput[]>([
+    { name: '', archetype: 'fallen_idealist', contradiction: '', bond: '', traits: [], description: '' },
+  ]);
+
+  // New architecture: World Rules
+  const [worldRules, setWorldRules] = useState<WorldRuleInput[]>([
+    { rule: 'Violence always creates revenge cycles', category: 'violence' },
+    { rule: 'Secrets surface at the worst moments', category: 'secrets' },
+    { rule: 'Trust once broken takes 3x effort to repair', category: 'trust' },
+  ]);
+
+  // New architecture: Ending Dimensions
+  const [endingDimensions, setEndingDimensions] = useState<EndingDimensionInput[]>([
+    { name: '', lowEnd: '', highEnd: '' },
+    { name: '', lowEnd: '', highEnd: '' },
+  ]);
+
+  // Legacy - kept for compatibility
   const [characters, setCharacters] = useState<CharacterInput[]>([
     { name: '', description: '', personality: '', role: 'protagonist', initialRelationship: 0 },
   ]);
@@ -73,26 +167,34 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
 
   const [config, setConfig] = useState<GraphGenerationConfig>(DEFAULT_CONFIG);
 
-  // Navigation
-  const steps: Step[] = ['basics', 'world', 'characters', 'endings', 'config'];
+  // Navigation - new architecture steps
+  const steps: Step[] = ['basics', 'conflicts', 'characters', 'rules', 'endings', 'config'];
   const currentStepIndex = steps.indexOf(step);
 
   const canGoNext = useCallback(() => {
     switch (step) {
       case 'basics':
-        return title.trim() && plot.trim() && beginningScenario.trim() && tags.length > 0;
-      case 'world':
-        return worldSettings.setting.trim() && worldSettings.mood.trim();
+        return title.trim() && plot.trim() && coreTension.trim() && beginningScenario.trim() && tags.length > 0;
+      case 'conflicts':
+        // Need at least 3 value conflicts with both values filled
+        return valueConflicts.filter(c => c.value1.trim() && c.value2.trim()).length >= 3;
       case 'characters':
-        return characters.length > 0 && characters.every(c => c.name.trim() && c.description.trim());
+        // Need at least 2 characters with required fields
+        return storyCharacters.filter(c =>
+          c.name.trim() && c.archetype && c.contradiction.trim() && c.bond.trim()
+        ).length >= 2;
+      case 'rules':
+        // Need at least 5 world rules
+        return worldRules.filter(r => r.rule.trim()).length >= 5;
       case 'endings':
-        return endings.every(e => e.description.trim());
+        // Need at least 2 ending dimensions
+        return endingDimensions.filter(d => d.name.trim() && d.lowEnd.trim() && d.highEnd.trim()).length >= 2;
       case 'config':
         return true;
       default:
         return false;
     }
-  }, [step, title, plot, beginningScenario, tags, worldSettings, characters, endings]);
+  }, [step, title, plot, coreTension, beginningScenario, tags, valueConflicts, storyCharacters, worldRules, endingDimensions]);
 
   const goNext = () => {
     const nextIndex = currentStepIndex + 1;
@@ -207,6 +309,99 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
     }
   };
 
+  // Value Conflict management
+  const addValueConflict = () => {
+    setValueConflicts([...valueConflicts, { value1: '', value2: '', description: '' }]);
+  };
+
+  const removeValueConflict = (index: number) => {
+    if (valueConflicts.length > 3) {
+      setValueConflicts(valueConflicts.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateValueConflict = (index: number, updates: Partial<ValueConflictInput>) => {
+    setValueConflicts(valueConflicts.map((c, i) => i === index ? { ...c, ...updates } : c));
+  };
+
+  const applyPresetConflict = (preset: typeof COMMON_VALUE_CONFLICTS[0], index: number) => {
+    updateValueConflict(index, preset);
+  };
+
+  // Story Character management (new architecture)
+  const addStoryCharacter = () => {
+    setStoryCharacters([...storyCharacters, {
+      name: '',
+      archetype: 'fallen_idealist',
+      contradiction: '',
+      bond: '',
+      traits: [],
+      description: '',
+    }]);
+  };
+
+  const removeStoryCharacter = (index: number) => {
+    if (storyCharacters.length > 2) {
+      setStoryCharacters(storyCharacters.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateStoryCharacter = (index: number, updates: Partial<StoryCharacterInput>) => {
+    setStoryCharacters(storyCharacters.map((c, i) => i === index ? { ...c, ...updates } : c));
+  };
+
+  const addCharacterTrait = (charIndex: number, trait: string) => {
+    if (trait.trim() && storyCharacters[charIndex].traits.length < 5) {
+      const updated = [...storyCharacters];
+      updated[charIndex] = {
+        ...updated[charIndex],
+        traits: [...updated[charIndex].traits, trait.trim()],
+      };
+      setStoryCharacters(updated);
+    }
+  };
+
+  const removeCharacterTrait = (charIndex: number, traitIndex: number) => {
+    const updated = [...storyCharacters];
+    updated[charIndex] = {
+      ...updated[charIndex],
+      traits: updated[charIndex].traits.filter((_, i) => i !== traitIndex),
+    };
+    setStoryCharacters(updated);
+  };
+
+  // World Rule management
+  const addWorldRule = () => {
+    setWorldRules([...worldRules, { rule: '', category: 'custom' }]);
+  };
+
+  const removeWorldRule = (index: number) => {
+    if (worldRules.length > 5) {
+      setWorldRules(worldRules.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateWorldRule = (index: number, updates: Partial<WorldRuleInput>) => {
+    setWorldRules(worldRules.map((r, i) => i === index ? { ...r, ...updates } : r));
+  };
+
+  // Ending Dimension management
+  const addEndingDimension = () => {
+    if (endingDimensions.length < 3) {
+      setEndingDimensions([...endingDimensions, { name: '', lowEnd: '', highEnd: '' }]);
+    }
+  };
+
+  const removeEndingDimension = (index: number) => {
+    if (endingDimensions.length > 2) {
+      setEndingDimensions(endingDimensions.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateEndingDimension = (index: number, updates: Partial<EndingDimensionInput>) => {
+    setEndingDimensions(endingDimensions.map((d, i) => i === index ? { ...d, ...updates } : d));
+  };
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
@@ -267,10 +462,24 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
                 placeholder="A gripping tale of intrigue where the player must navigate a web of political conspiracies, make impossible choices, and face the consequences of their decisions..."
                 value={plot}
                 onChange={e => setPlot(e.target.value)}
-                rows={4}
+                rows={3}
               />
               <span className={styles.hint}>
-                Describe the main conflict and what's at stake. The AI will create scenarios with tough choices.
+                Brief overview of the story.
+              </span>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Core Tension * (The Central Conflict)</label>
+              <textarea
+                className={styles.textarea}
+                placeholder="An amnesiac enforcer discovers he may be the perpetrator of a massacre, torn between uncovering the truth and protecting those he now loves..."
+                value={coreTension}
+                onChange={e => setCoreTension(e.target.value)}
+                rows={3}
+              />
+              <span className={styles.hint}>
+                1-3 sentences describing the central dramatic conflict. This drives all the hard choices in your story.
               </span>
             </div>
 

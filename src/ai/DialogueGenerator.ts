@@ -3,28 +3,25 @@
  */
 
 import type {
-  NarrativeNode,
-  Edge,
   WorldState,
   Character,
-  SceneContext,
   HistoryEntry,
   GeneratedDialogue,
   PlayerChoice,
-} from '../types';
+  Edge,
+} from '../types/index.js';
 import type {
   AIProvider,
   TurnGenerationRequest,
   TurnGenerationResponse,
   AIResponseFormat,
   AIConfig,
-  NarrativeContext,
-} from '../types/ai';
+} from '../types/ai.js';
 import {
   buildNarratorSystemPrompt,
   buildTurnPrompt,
   buildCharacterPrompt,
-} from './prompts/system';
+} from './prompts/system.js';
 
 export class DialogueGenerator implements AIProvider {
   private config: AIConfig;
@@ -299,7 +296,7 @@ export interface AIAPIClient {
  * Mock API client for testing
  */
 export class MockAIClient implements AIAPIClient {
-  async complete(request: {
+  async complete(_request: {
     systemPrompt: string;
     userPrompt: string;
     temperature: number;

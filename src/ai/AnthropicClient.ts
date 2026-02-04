@@ -2,7 +2,10 @@
  * AnthropicClient - Client for Anthropic's Claude API
  */
 
-import type { AIAPIClient } from './DialogueGenerator';
+// Declare process for Node.js environments
+declare const process: { env: Record<string, string | undefined> } | undefined;
+
+import type { AIAPIClient } from './DialogueGenerator.js';
 
 export interface AnthropicConfig {
   apiKey: string;
@@ -71,7 +74,7 @@ export function createAnthropicClient(
   apiKey?: string,
   model?: string
 ): AnthropicClient {
-  const key = apiKey ?? process.env.ANTHROPIC_API_KEY;
+  const key = apiKey ?? (typeof process !== 'undefined' ? process?.env?.ANTHROPIC_API_KEY : undefined);
   if (!key) {
     throw new Error(
       'Anthropic API key required. Set ANTHROPIC_API_KEY environment variable or pass apiKey.'

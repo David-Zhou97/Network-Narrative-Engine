@@ -1,6 +1,10 @@
 /**
  * Story Graph Generator Service
  * Uses AI to generate narrative graphs from user input
+ *
+ * Supports both legacy format and new Story Seed architecture:
+ * - Legacy: StoryCreationInput → GeneratedGraph
+ * - New: StorySeedInput → StorySeed + NarrativeSkeleton
  */
 
 import { AIService } from './ai.js';
@@ -13,6 +17,119 @@ import type {
   GeneratedCharacter,
   GeneratedWorldState,
 } from '../types/storyCreation.js';
+
+// Types for the new Story Seed architecture
+export interface StorySeedInput {
+  title: string;
+  description: string;
+  tags: string[];
+  /** Value conflicts: pairs of opposing values */
+  valueConflicts: Array<{
+    value1: string;
+    value2: string;
+    description?: string;
+  }>;
+  /** Core tension: 1-3 sentences describing the central conflict */
+  coreTension: string;
+  /** Characters with archetype, contradiction, and bond */
+  characters: Array<{
+    name: string;
+    archetype: string;
+    contradiction: string;
+    bond: string;
+    traits?: string[];
+    description?: string;
+  }>;
+  /** World rules: causal laws that govern consequences */
+  worldRules: Array<{
+    rule: string;
+    category: 'violence' | 'trust' | 'secrets' | 'resources' | 'relationships' | 'time' | 'custom';
+  }>;
+  /** Ending dimensions: axes defining outcome space */
+  endingDimensions: Array<{
+    name: string;
+    lowEnd: string;
+    highEnd: string;
+  }>;
+  /** World context */
+  worldContext: {
+    setting: string;
+    timePeriod: string;
+    mood: string;
+    playerRole: string;
+  };
+  /** Beginning scenario */
+  beginningScenario: string;
+  /** Estimated playtime */
+  estimatedMinutes: number;
+  /** Difficulty level */
+  difficulty: 'easy' | 'medium' | 'challenging';
+}
+
+export interface GeneratedStorySeed {
+  id: string;
+  title: string;
+  description: string;
+  tags: string[];
+  valueConflicts: Array<{
+    id: string;
+    value1: string;
+    value2: string;
+    description?: string;
+    weight: number;
+  }>;
+  coreTension: {
+    description: string;
+    internalConflict?: string;
+    stakes?: string;
+  };
+  characters: Array<{
+    id: string;
+    name: string;
+    archetype: string;
+    contradiction: string;
+    bond: string;
+    initialRelationship: number;
+    description: string;
+    traits: string[];
+    secret?: string;
+    desire?: string;
+    fear?: string;
+  }>;
+  worldRules: Array<{
+    id: string;
+    rule: string;
+    category: string;
+    mechanicalEffect?: string;
+    priority: number;
+  }>;
+  endingDimensions: Array<{
+    id: string;
+    name: string;
+    lowEnd: string;
+    highEnd: string;
+    description?: string;
+  }>;
+  endings: Array<{
+    id: string;
+    title: string;
+    dimensionPositions: Record<string, number>;
+    requirements?: string;
+    epilogue: string;
+    classification: 'good' | 'neutral' | 'bad' | 'secret' | 'bittersweet';
+  }>;
+  worldContext: {
+    setting: string;
+    timePeriod: string;
+    mood: string;
+    playerRole: string;
+  };
+  beginningScenario: string;
+  estimatedMinutes: number;
+  difficulty: 'easy' | 'medium' | 'challenging';
+  createdAt: number;
+  updatedAt: number;
+}
 
 const DEFAULT_CONFIG: GraphGenerationConfig = {
   minStoryNodes: 8,
@@ -558,5 +675,326 @@ Generate the edge JSON:`;
       console.error('Failed to parse AI response as JSON:', cleaned.slice(0, 500));
       throw new Error('Failed to parse AI response as JSON');
     }
+  }
+
+  // ============================================================================
+  // New Story Seed Architecture Methods
+  // ============================================================================
+
+  /**
+   * Generate a complete Story Seed from input
+   * This uses the new architecture with value conflicts, world rules, and ending dimensions
+   */
+  async generateStorySeed(input: StorySeedInput): Promise<GeneratedStorySeed> {
+    console.log(`[StoryGenerator] Starting Story Seed generation for: "${input.title}"`);
+
+    // Step 1: Enhance value conflicts with AI
+    console.log('[StoryGenerator] Step 1/4: Enhancing value conflicts...');
+    const valueConflicts = await this.enhanceValueConflicts(input);
+
+    // Step 2: Enhance characters with AI
+    console.log('[StoryGenerator] Step 2/4: Enhancing characters...');
+    const characters = await this.enhanceCharactersForStorySeed(input);
+
+    // Step 3: Enhance world rules with AI
+    console.log('[StoryGenerator] Step 3/4: Enhancing world rules...');
+    const worldRules = await this.enhanceWorldRules(input);
+
+    // Step 4: Generate endings based on dimensions
+    console.log('[StoryGenerator] Step 4/4: Generating endings from dimensions...');
+    const { endingDimensions, endings } = await this.generateDimensionalEndings(input);
+
+    // Step 5: Enhance core tension
+    const coreTension = await this.enhanceCoreTension(input);
+
+    const storySeed: GeneratedStorySeed = {
+      id: this.generateId(input.title),
+      title: input.title,
+      description: input.description,
+      tags: input.tags,
+      valueConflicts,
+      coreTension,
+      characters,
+      worldRules,
+      endingDimensions,
+      endings,
+      worldContext: input.worldContext,
+      beginningScenario: input.beginningScenario,
+      estimatedMinutes: input.estimatedMinutes,
+      difficulty: input.difficulty,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    console.log(`[StoryGenerator] Story Seed generation complete for: "${input.title}"`);
+    return storySeed;
+  }
+
+  /**
+   * Enhance value conflicts with descriptions and weights
+   */
+  private async enhanceValueConflicts(input: StorySeedInput): Promise<GeneratedStorySeed['valueConflicts']> {
+    const systemPrompt = `You are designing value conflicts for an interactive narrative.
+Each conflict should represent a genuine moral dilemma where both values are legitimate.
+
+Output ONLY valid JSON matching this structure:
+{
+  "conflicts": [
+    {
+      "id": "conflict_id",
+      "value1": "First Value",
+      "value2": "Second Value",
+      "description": "How this conflict manifests in the story",
+      "weight": 1.0
+    }
+  ]
+}`;
+
+    const userPrompt = `Enhance these value conflicts for the story "${input.title}":
+
+STORY CONTEXT:
+${input.description}
+Core Tension: ${input.coreTension}
+Setting: ${input.worldContext.setting}
+
+INPUT CONFLICTS:
+${input.valueConflicts.map((c, i) => `${i + 1}. ${c.value1} vs ${c.value2}${c.description ? `: ${c.description}` : ''}`).join('\n')}
+
+For each conflict:
+1. Clarify how it connects to the story
+2. Describe situations where this conflict arises
+3. Assign a weight (0.5 to 1.5) based on centrality to the narrative
+
+Generate the enhanced conflicts JSON:`;
+
+    const response = await this.aiService.complete({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.7,
+      maxTokens: 1500,
+    });
+
+    const parsed = this.parseJSON(response);
+    return parsed.conflicts || [];
+  }
+
+  /**
+   * Enhance characters for the story seed format
+   */
+  private async enhanceCharactersForStorySeed(input: StorySeedInput): Promise<GeneratedStorySeed['characters']> {
+    const systemPrompt = `You are designing characters for a value-driven interactive narrative.
+Each character should embody specific values and have internal contradictions.
+
+Output ONLY valid JSON matching this structure:
+{
+  "characters": [
+    {
+      "id": "character_id",
+      "name": "Full Name",
+      "archetype": "the archetype",
+      "contradiction": "What they appear to be vs what they truly are",
+      "bond": "Their connection to the player",
+      "initialRelationship": number (-100 to 100),
+      "description": "Physical and role description",
+      "traits": ["trait1", "trait2", "trait3"],
+      "secret": "What they're hiding",
+      "desire": "What they want most",
+      "fear": "What they fear most"
+    }
+  ]
+}`;
+
+    const userPrompt = `Enhance these characters for the story "${input.title}":
+
+STORY CONTEXT:
+${input.description}
+Core Tension: ${input.coreTension}
+Value Conflicts: ${input.valueConflicts.map(c => `${c.value1} vs ${c.value2}`).join(', ')}
+
+INPUT CHARACTERS:
+${input.characters.map((c, i) => `
+${i + 1}. ${c.name}
+   Archetype: ${c.archetype}
+   Contradiction: ${c.contradiction}
+   Bond: ${c.bond}
+   ${c.traits ? `Traits: ${c.traits.join(', ')}` : ''}
+   ${c.description ? `Description: ${c.description}` : ''}
+`).join('\n')}
+
+For each character:
+1. Deepen their contradiction to create internal conflict
+2. Connect their bond to the player meaningfully
+3. Give them a secret that could change everything
+4. Define their core desire and fear
+
+Generate the enhanced characters JSON:`;
+
+    const response = await this.aiService.complete({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.7,
+      maxTokens: 2000,
+    });
+
+    const parsed = this.parseJSON(response);
+    return parsed.characters || [];
+  }
+
+  /**
+   * Enhance world rules with mechanical effects
+   */
+  private async enhanceWorldRules(input: StorySeedInput): Promise<GeneratedStorySeed['worldRules']> {
+    const systemPrompt = `You are designing the causal rules for an interactive narrative.
+These rules govern how player actions lead to consequences.
+
+Output ONLY valid JSON matching this structure:
+{
+  "rules": [
+    {
+      "id": "rule_id",
+      "rule": "The rule statement",
+      "category": "violence|trust|secrets|resources|relationships|time|custom",
+      "mechanicalEffect": "How this affects gameplay",
+      "priority": 1
+    }
+  ]
+}`;
+
+    const userPrompt = `Enhance these world rules for the story "${input.title}":
+
+STORY CONTEXT:
+${input.description}
+Value Conflicts: ${input.valueConflicts.map(c => `${c.value1} vs ${c.value2}`).join(', ')}
+
+INPUT RULES:
+${input.worldRules.map((r, i) => `${i + 1}. [${r.category}] ${r.rule}`).join('\n')}
+
+For each rule:
+1. Clarify the mechanical effect on gameplay
+2. Assign priority (1 = highest, applied first)
+3. Ensure rules create interesting consequences, not punishments
+
+If fewer than 5 rules provided, add complementary rules.
+
+Generate the enhanced rules JSON:`;
+
+    const response = await this.aiService.complete({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.7,
+      maxTokens: 1500,
+    });
+
+    const parsed = this.parseJSON(response);
+    return parsed.rules || [];
+  }
+
+  /**
+   * Generate endings based on ending dimensions
+   */
+  private async generateDimensionalEndings(input: StorySeedInput): Promise<{
+    endingDimensions: GeneratedStorySeed['endingDimensions'];
+    endings: GeneratedStorySeed['endings'];
+  }> {
+    const systemPrompt = `You are designing the ending system for an interactive narrative.
+Endings are determined by the player's position on multiple dimensions.
+
+Output ONLY valid JSON matching this structure:
+{
+  "dimensions": [
+    {
+      "id": "dimension_id",
+      "name": "Dimension Name",
+      "lowEnd": "What the low end represents",
+      "highEnd": "What the high end represents",
+      "description": "What this dimension tracks"
+    }
+  ],
+  "endings": [
+    {
+      "id": "ending_id",
+      "title": "Ending Title",
+      "dimensionPositions": { "dimension_id": 0.8 },
+      "requirements": "What led to this ending",
+      "epilogue": "The ending text",
+      "classification": "good|neutral|bad|secret|bittersweet"
+    }
+  ]
+}`;
+
+    const userPrompt = `Generate endings for the story "${input.title}":
+
+STORY CONTEXT:
+${input.description}
+Core Tension: ${input.coreTension}
+
+VALUE CONFLICTS:
+${input.valueConflicts.map(c => `${c.value1} vs ${c.value2}`).join('\n')}
+
+INPUT ENDING DIMENSIONS:
+${input.endingDimensions.map((d, i) => `${i + 1}. ${d.name}: ${d.lowEnd} ↔ ${d.highEnd}`).join('\n')}
+
+Requirements:
+1. Create 4-6 distinct endings based on dimension combinations
+2. Each ending should feel like a natural consequence of choices
+3. Include at least one "good", one "bad", and one "bittersweet" ending
+4. Consider a "secret" ending for unusual dimension combinations
+5. Epilogues should be 2-3 sentences
+
+Generate the dimensions and endings JSON:`;
+
+    const response = await this.aiService.complete({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.8,
+      maxTokens: 2500,
+    });
+
+    const parsed = this.parseJSON(response);
+    return {
+      endingDimensions: parsed.dimensions || [],
+      endings: parsed.endings || [],
+    };
+  }
+
+  /**
+   * Enhance the core tension with internal conflict and stakes
+   */
+  private async enhanceCoreTension(input: StorySeedInput): Promise<GeneratedStorySeed['coreTension']> {
+    const systemPrompt = `You are defining the central dramatic tension for an interactive narrative.
+The core tension should drive every major decision in the story.
+
+Output ONLY valid JSON matching this structure:
+{
+  "description": "The main tension in 2-3 sentences",
+  "internalConflict": "The protagonist's internal struggle",
+  "stakes": "What happens if the player fails"
+}`;
+
+    const userPrompt = `Enhance the core tension for the story "${input.title}":
+
+INPUT CORE TENSION:
+${input.coreTension}
+
+STORY CONTEXT:
+${input.description}
+Value Conflicts: ${input.valueConflicts.map(c => `${c.value1} vs ${c.value2}`).join(', ')}
+Characters: ${input.characters.map(c => `${c.name} (${c.archetype})`).join(', ')}
+
+Deepen the tension to:
+1. Connect to the value conflicts
+2. Make it personal through the protagonist's internal struggle
+3. Establish clear stakes
+
+Generate the enhanced core tension JSON:`;
+
+    const response = await this.aiService.complete({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.7,
+      maxTokens: 500,
+    });
+
+    return this.parseJSON(response);
   }
 }

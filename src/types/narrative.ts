@@ -1,6 +1,15 @@
 /**
  * Core type definitions for the Network Narrative Engine
+ *
+ * Node Types in the new architecture:
+ * - Anchor nodes: Preset key moments that must occur
+ * - Branch nodes: Player choice points
+ * - Transition nodes: AI-generated connective tissue
+ * - Merge nodes: Path convergence points
+ * - Ending nodes: Terminal outcomes
  */
+
+// Story seed types are imported by consumer modules, not used directly here
 
 // ============================================================================
 // Narrative Metadata
@@ -13,6 +22,8 @@ export interface NarrativeMetadata {
   author?: string;
   version?: string;
   tags?: string[];
+  /** Reference to the source Story Seed */
+  storySeedId?: string;
 }
 
 // ============================================================================
@@ -69,6 +80,65 @@ export interface WorldState {
   currentNodeId: string;
   turnCount: number;
   history: HistoryEntry[];
+  /** Memories of past choices and their consequences */
+  memories: Memory[];
+  /** Tracking which value conflicts have been presented */
+  valueConflictHistory: ValueConflictRecord[];
+  /** Current position on ending dimensions */
+  endingDimensionScores: Record<string, number>;
+  /** Active world rule effects */
+  activeRuleEffects: ActiveRuleEffect[];
+}
+
+/**
+ * A memory of a past event or choice
+ */
+export interface Memory {
+  id: string;
+  /** Type of memory */
+  type: 'choice' | 'revelation' | 'relationship' | 'consequence';
+  /** Brief description */
+  description: string;
+  /** When this memory was created (turn number) */
+  createdAt: number;
+  /** How significant this memory is (1-10) */
+  significance: number;
+  /** Characters involved */
+  involvedCharacters?: string[];
+  /** Value conflict related to this memory */
+  relatedConflict?: string;
+  /** Whether this memory has been "surfaced" (recalled) */
+  hasSurfaced?: boolean;
+}
+
+/**
+ * Record of a value conflict that was presented to the player
+ */
+export interface ValueConflictRecord {
+  conflictId: string;
+  /** Which turn this was presented */
+  presentedAt: number;
+  /** What choice the player made */
+  choiceMade: 'value1' | 'value2' | 'both' | 'neither';
+  /** The specific choice text */
+  choiceText: string;
+  /** Node where this occurred */
+  nodeId: string;
+}
+
+/**
+ * An active world rule effect
+ */
+export interface ActiveRuleEffect {
+  ruleId: string;
+  /** When this effect was triggered */
+  triggeredAt: number;
+  /** How many turns until this effect resolves */
+  turnsRemaining?: number;
+  /** Description of the pending effect */
+  pendingEffect: string;
+  /** Target of the effect (character, player, world) */
+  target: string;
 }
 
 export interface HistoryEntry {
@@ -82,7 +152,18 @@ export interface HistoryEntry {
 // Narrative Graph - Nodes
 // ============================================================================
 
-export type NodeType = 'entry' | 'story' | 'branch' | 'converge' | 'ending';
+/**
+ * Node types in the narrative skeleton:
+ * - entry: Starting scenarios (legacy, still supported)
+ * - anchor: Preset key moments that must occur
+ * - branch: Player choice points with value conflict dilemmas
+ * - transition: AI-generated connective tissue
+ * - merge: Path convergence points
+ * - ending: Terminal outcomes with dimensional positions
+ * - story: Legacy story node (still supported for backwards compatibility)
+ * - converge: Legacy converge node (still supported)
+ */
+export type NodeType = 'entry' | 'story' | 'branch' | 'converge' | 'ending' | 'anchor' | 'transition' | 'merge';
 
 export interface BaseNode {
   id: string;
@@ -136,16 +217,129 @@ export interface ConvergeNode extends BaseNode {
 export interface EndingNode extends BaseNode {
   type: 'ending';
   /** Ending classification */
-  endingType: 'good' | 'neutral' | 'bad' | 'secret';
+  endingType: 'good' | 'neutral' | 'bad' | 'secret' | 'bittersweet';
   /** Title for this ending */
   title: string;
   /** Epilogue text */
   epilogue: string;
   /** Conditions that led to this ending (for analytics) */
   achievementConditions?: string[];
+  /** Position on ending dimensions (for new architecture) */
+  dimensionPositions?: Record<string, number>;
 }
 
-export type NarrativeNode = EntryNode | StoryNode | BranchNode | ConvergeNode | EndingNode;
+// ============================================================================
+// New Node Types for Value-Conflict Architecture
+// ============================================================================
+
+/**
+ * Anchor Node: Preset key moments that must occur
+ * These are the author-defined dramatic beats that anchor the narrative
+ */
+export interface AnchorNode extends BaseNode {
+  type: 'anchor';
+  /** Title for this key moment */
+  title: string;
+  /** The dramatic beat this represents */
+  beat: string;
+  /** Why this moment matters to the story */
+  significance: string;
+  /** Scripted dialogue for this moment (AI will expand) */
+  dialogue?: ScriptedDialogue[];
+  /** Whether this anchor is optional or required */
+  required: boolean;
+  /** Order hint for when this should occur (lower = earlier) */
+  orderHint?: number;
+}
+
+/**
+ * Transition Node: AI-generated connective tissue between anchors
+ * These nodes are dynamically generated based on player choices
+ */
+export interface TransitionNode extends BaseNode {
+  type: 'transition';
+  /** The purpose of this transition */
+  purpose: 'bridge' | 'escalation' | 'relief' | 'revelation' | 'preparation';
+  /** What value conflict is being explored */
+  activeConflict?: string;
+  /** Generated dynamically - can be regenerated */
+  isGenerated: boolean;
+  /** Seed data used for regeneration */
+  generationContext?: {
+    fromAnchorId?: string;
+    toAnchorId?: string;
+    playerChoicesInfluence: string[];
+  };
+}
+
+/**
+ * Merge Node: Path convergence points
+ * Multiple story paths can lead here, but the story continues as one
+ */
+export interface MergeNode extends BaseNode {
+  type: 'merge';
+  /** Title for this convergence point */
+  title: string;
+  /** How different paths are reconciled */
+  mergeStrategy: 'acknowledge_differences' | 'common_ground' | 'forced_unity';
+  /** Text variations based on incoming path */
+  pathVariations?: Record<string, string>;
+  /** The canonical continuation after merge */
+  canonicalContinuation: string;
+}
+
+/**
+ * Hard Choice: A player choice point with genuine dilemmas
+ * Generated by the HardChoiceGenerator based on value conflicts
+ */
+export interface HardChoiceNode extends BaseNode {
+  type: 'branch';
+  /** The value conflict being explored */
+  valueConflict: {
+    value1: string;
+    value2: string;
+    conflictId: string;
+  };
+  /** The dilemma presented to the player */
+  dilemma: string;
+  /** The four choice options */
+  choices: HardChoice[];
+  /** Characters involved in this choice */
+  involvedCharacters: string[];
+  /** World rules that apply to this choice */
+  applicableRules: string[];
+}
+
+/**
+ * A hard choice option with clear tradeoffs
+ */
+export interface HardChoice {
+  id: string;
+  /** Display text for the choice */
+  text: string;
+  /** Which value this favors */
+  favors: 'value1' | 'value2' | 'both' | 'neither';
+  /** What the player gains */
+  benefit: string;
+  /** What the player loses or risks */
+  cost: string;
+  /** Hidden consequences not immediately visible */
+  hiddenConsequences?: string;
+  /** Conditions required to show this choice */
+  conditions?: EdgeCondition[];
+  /** Whether this is the "third path" option */
+  isThirdPath?: boolean;
+}
+
+export type NarrativeNode =
+  | EntryNode
+  | StoryNode
+  | BranchNode
+  | ConvergeNode
+  | EndingNode
+  | AnchorNode
+  | TransitionNode
+  | MergeNode;
 
 // ============================================================================
 // Narrative Graph - Edges
@@ -262,7 +456,7 @@ export interface PlayerChoice {
 }
 
 export interface EndingResult {
-  type: 'good' | 'neutral' | 'bad' | 'secret';
+  type: 'good' | 'neutral' | 'bad' | 'secret' | 'bittersweet';
   title: string;
   epilogue: string;
   stats: {

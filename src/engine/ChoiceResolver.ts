@@ -2,9 +2,9 @@
  * ChoiceResolver - Resolves available choices and handles transitions
  */
 
-import type { Edge, EdgeCondition, BranchCondition, PlayerChoice } from '../types';
-import { StateManager } from './StateManager';
-import { GraphManager } from './GraphManager';
+import type { Edge, PlayerChoice } from '../types/index.js';
+import { StateManager } from './StateManager.js';
+import { GraphManager } from './GraphManager.js';
 
 export class ChoiceResolver {
   private stateManager: StateManager;
