@@ -234,6 +234,8 @@ Generate detailed character definitions based on the user's input.
 CRITICAL: Characters must have clear motivations that can create CONFLICT with the player's goals.
 Each character should have secrets, flaws, and competing interests.
 
+RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
+
 Output ONLY valid JSON matching this structure:
 {
   "characters": [
@@ -294,6 +296,8 @@ Generate the characters JSON:`;
     const systemPrompt = `You are designing the state tracking system for an interactive story.
 Create variables that track meaningful choices, resources, and story flags.
 These should create TRADE-OFFS - gaining one thing should risk losing another.
+
+RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
 
 Output ONLY valid JSON matching this structure:
 {
@@ -378,6 +382,8 @@ CONFLICT TYPES TO USE:
 - Safety vs Justice (protect yourself vs do what's right)
 - Loyalty vs Morality (help a friend do wrong vs betray them)
 - Present vs Future (quick fix vs long-term solution)
+
+RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no commentary, no markdown code blocks, no text before or after the JSON. Your entire response must be parseable JSON starting with { and ending with }.
 
 Output ONLY valid JSON matching this structure:
 {
@@ -493,7 +499,8 @@ Generate the complete graph JSON:`;
 
     const systemPrompt = `You are a narrative designer improving a single scene in an interactive story.
 The scene should create conflict and difficult choices.
-Output ONLY valid JSON for a single node.`;
+
+RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.`;
 
     const userPrompt = `Regenerate this scene:
 
@@ -545,7 +552,8 @@ Generate the node JSON:`;
 
     const systemPrompt = `You are a narrative designer improving a single choice in an interactive story.
 The choice should present a meaningful dilemma with clear trade-offs.
-Output ONLY valid JSON for a single edge.`;
+
+RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.`;
 
     const userPrompt = `Regenerate this choice:
 
@@ -662,17 +670,8 @@ Generate the edge JSON:`;
     const codeBlockMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (codeBlockMatch) {
       const extracted = codeBlockMatch[1].trim();
-      try {
-        return JSON.parse(extracted);
-      } catch {
-        // Try with trailing comma fix
-        const fixed = this.fixTrailingCommas(extracted);
-        try {
-          return JSON.parse(fixed);
-        } catch {
-          // Continue to other strategies
-        }
-      }
+      const result = this.tryParseJson(extracted);
+      if (result !== null) return result;
     }
 
     // Strategy 2: Try the raw response after basic cleanup
@@ -681,63 +680,236 @@ Generate the edge JSON:`;
     cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
     cleaned = cleaned.trim();
 
-    try {
-      return JSON.parse(cleaned);
-    } catch {
-      // Continue to other strategies
+    const directResult = this.tryParseJson(cleaned);
+    if (directResult !== null) return directResult;
+
+    // Strategy 3: Find the start of JSON and extract balanced brackets
+    // Look for the first { or [ that starts a JSON structure
+    const jsonStartObj = cleaned.indexOf('{');
+    const jsonStartArr = cleaned.indexOf('[');
+
+    let jsonStart = -1;
+    if (jsonStartObj >= 0 && jsonStartArr >= 0) {
+      jsonStart = Math.min(jsonStartObj, jsonStartArr);
+    } else if (jsonStartObj >= 0) {
+      jsonStart = jsonStartObj;
+    } else if (jsonStartArr >= 0) {
+      jsonStart = jsonStartArr;
     }
 
-    // Strategy 3: Extract JSON object or array from anywhere in the response
-    // This handles cases where the AI includes explanatory text before/after JSON
-    const jsonObjectMatch = response.match(/(\{[\s\S]*\})/);
-    const jsonArrayMatch = response.match(/(\[[\s\S]*\])/);
-
-    // Try to determine which match is more likely to be the complete JSON
-    let jsonString: string | null = null;
-
-    if (jsonObjectMatch && jsonArrayMatch) {
-      // If both exist, use the one that appears first and contains the other,
-      // or the one with balanced brackets
-      const objIndex = response.indexOf(jsonObjectMatch[1]);
-      const arrIndex = response.indexOf(jsonArrayMatch[1]);
-      jsonString = objIndex < arrIndex ? jsonObjectMatch[1] : jsonArrayMatch[1];
-    } else {
-      jsonString = jsonObjectMatch?.[1] || jsonArrayMatch?.[1] || null;
-    }
-
-    if (jsonString) {
-      // Try to find the balanced JSON by tracking bracket depth
-      const balancedJson = this.extractBalancedJson(jsonString);
+    if (jsonStart >= 0) {
+      const jsonSubstring = cleaned.slice(jsonStart);
+      const balancedJson = this.extractBalancedJson(jsonSubstring);
       if (balancedJson) {
-        try {
-          return JSON.parse(balancedJson);
-        } catch {
-          // Try with trailing comma fix
-          const fixed = this.fixTrailingCommas(balancedJson);
-          try {
-            return JSON.parse(fixed);
-          } catch {
-            // Continue to final fallback
+        const result = this.tryParseJson(balancedJson);
+        if (result !== null) return result;
+      }
+    }
+
+    // Strategy 4: Try the original response with same approach
+    if (response !== cleaned) {
+      const origJsonStartObj = response.indexOf('{');
+      const origJsonStartArr = response.indexOf('[');
+
+      let origJsonStart = -1;
+      if (origJsonStartObj >= 0 && origJsonStartArr >= 0) {
+        origJsonStart = Math.min(origJsonStartObj, origJsonStartArr);
+      } else if (origJsonStartObj >= 0) {
+        origJsonStart = origJsonStartObj;
+      } else if (origJsonStartArr >= 0) {
+        origJsonStart = origJsonStartArr;
+      }
+
+      if (origJsonStart >= 0) {
+        const jsonSubstring = response.slice(origJsonStart);
+        const balancedJson = this.extractBalancedJson(jsonSubstring);
+        if (balancedJson) {
+          const result = this.tryParseJson(balancedJson);
+          if (result !== null) return result;
+        }
+      }
+    }
+
+    // Strategy 5: Look for JSON after common AI prefixes
+    const prefixPatterns = [
+      /(?:here(?:'s| is) (?:the )?(?:json|response|output)[:\s]*)/i,
+      /(?:json[:\s]*)/i,
+      /(?:output[:\s]*)/i,
+      /(?:result[:\s]*)/i,
+    ];
+
+    for (const pattern of prefixPatterns) {
+      const match = response.match(pattern);
+      if (match && match.index !== undefined) {
+        const afterPrefix = response.slice(match.index + match[0].length).trim();
+        const startChar = afterPrefix.indexOf('{') === 0 || afterPrefix.indexOf('[') === 0 ? 0 : -1;
+        if (startChar === 0) {
+          const balancedJson = this.extractBalancedJson(afterPrefix);
+          if (balancedJson) {
+            const result = this.tryParseJson(balancedJson);
+            if (result !== null) return result;
           }
         }
       }
     }
 
-    // Strategy 4: Last resort - try to fix common JSON issues
-    const fixedResponse = this.fixTrailingCommas(cleaned);
+    // Log detailed error information for debugging
+    console.error('[StoryGenerator] Failed to parse AI response as JSON');
+    console.error('[StoryGenerator] Response length:', response.length);
+    console.error('[StoryGenerator] Response preview (first 1000 chars):', response.slice(0, 1000));
+    console.error('[StoryGenerator] Response preview (last 500 chars):', response.slice(-500));
+    throw new Error('Failed to parse AI response as JSON');
+  }
+
+  /**
+   * Try to parse JSON with multiple fix strategies
+   */
+  private tryParseJson(str: string): any | null {
+    // Try direct parse first
     try {
-      return JSON.parse(fixedResponse);
-    } catch (finalError) {
-      // Log detailed error information for debugging
-      console.error('[StoryGenerator] Failed to parse AI response as JSON');
-      console.error('[StoryGenerator] Response length:', response.length);
-      console.error('[StoryGenerator] Response preview (first 1000 chars):', response.slice(0, 1000));
-      console.error('[StoryGenerator] Response preview (last 500 chars):', response.slice(-500));
-      if (jsonString) {
-        console.error('[StoryGenerator] Extracted JSON preview:', jsonString.slice(0, 500));
-      }
-      throw new Error('Failed to parse AI response as JSON');
+      return JSON.parse(str);
+    } catch {
+      // Continue to fixes
     }
+
+    // Try removing trailing commas
+    const withoutTrailingCommas = this.fixTrailingCommas(str);
+    try {
+      return JSON.parse(withoutTrailingCommas);
+    } catch {
+      // Continue
+    }
+
+    // Try removing JavaScript-style comments
+    const withoutComments = this.removeJsonComments(str);
+    try {
+      return JSON.parse(withoutComments);
+    } catch {
+      // Continue
+    }
+
+    // Try both fixes together
+    const fullyFixed = this.fixTrailingCommas(this.removeJsonComments(str));
+    try {
+      return JSON.parse(fullyFixed);
+    } catch {
+      // Continue
+    }
+
+    // Try fixing unescaped newlines in strings
+    const withFixedNewlines = this.fixUnescapedNewlines(fullyFixed);
+    try {
+      return JSON.parse(withFixedNewlines);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Remove JavaScript-style comments from JSON
+   */
+  private removeJsonComments(json: string): string {
+    // Remove single-line comments (// ...)
+    // Be careful not to match // inside strings
+    let result = '';
+    let inString = false;
+    let escapeNext = false;
+    let i = 0;
+
+    while (i < json.length) {
+      const char = json[i];
+      const nextChar = json[i + 1];
+
+      if (escapeNext) {
+        result += char;
+        escapeNext = false;
+        i++;
+        continue;
+      }
+
+      if (char === '\\' && inString) {
+        result += char;
+        escapeNext = true;
+        i++;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        result += char;
+        i++;
+        continue;
+      }
+
+      if (!inString && char === '/' && nextChar === '/') {
+        // Skip until end of line
+        while (i < json.length && json[i] !== '\n') {
+          i++;
+        }
+        continue;
+      }
+
+      if (!inString && char === '/' && nextChar === '*') {
+        // Skip until */
+        i += 2;
+        while (i < json.length - 1 && !(json[i] === '*' && json[i + 1] === '/')) {
+          i++;
+        }
+        i += 2; // Skip */
+        continue;
+      }
+
+      result += char;
+      i++;
+    }
+
+    return result;
+  }
+
+  /**
+   * Fix unescaped newlines inside JSON strings
+   */
+  private fixUnescapedNewlines(json: string): string {
+    // This is a heuristic fix - replace literal newlines inside strings with \n
+    let result = '';
+    let inString = false;
+    let escapeNext = false;
+
+    for (let i = 0; i < json.length; i++) {
+      const char = json[i];
+
+      if (escapeNext) {
+        result += char;
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        result += char;
+        if (inString) {
+          escapeNext = true;
+        }
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        result += char;
+        continue;
+      }
+
+      if (inString && (char === '\n' || char === '\r')) {
+        result += '\\n';
+        if (char === '\r' && json[i + 1] === '\n') {
+          i++; // Skip the \n in \r\n
+        }
+        continue;
+      }
+
+      result += char;
+    }
+
+    return result;
   }
 
   /**
@@ -859,6 +1031,8 @@ Generate the edge JSON:`;
     const systemPrompt = `You are designing value conflicts for an interactive narrative.
 Each conflict should represent a genuine moral dilemma where both values are legitimate.
 
+RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
+
 Output ONLY valid JSON matching this structure:
 {
   "conflicts": [
@@ -906,6 +1080,8 @@ Generate the enhanced conflicts JSON:`;
   private async enhanceCharactersForStorySeed(input: StorySeedInput): Promise<GeneratedStorySeed['characters']> {
     const systemPrompt = `You are designing characters for a value-driven interactive narrative.
 Each character should embody specific values and have internal contradictions.
+
+RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
 
 Output ONLY valid JSON matching this structure:
 {
@@ -969,6 +1145,8 @@ Generate the enhanced characters JSON:`;
     const systemPrompt = `You are designing the causal rules for an interactive narrative.
 These rules govern how player actions lead to consequences.
 
+RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
+
 Output ONLY valid JSON matching this structure:
 {
   "rules": [
@@ -1020,6 +1198,8 @@ Generate the enhanced rules JSON:`;
   }> {
     const systemPrompt = `You are designing the ending system for an interactive narrative.
 Endings are determined by the player's position on multiple dimensions.
+
+RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
 
 Output ONLY valid JSON matching this structure:
 {
@@ -1085,6 +1265,8 @@ Generate the dimensions and endings JSON:`;
   private async enhanceCoreTension(input: StorySeedInput): Promise<GeneratedStorySeed['coreTension']> {
     const systemPrompt = `You are defining the central dramatic tension for an interactive narrative.
 The core tension should drive every major decision in the story.
+
+RESPONSE FORMAT: You must respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. Start your response with { and end with }.
 
 Output ONLY valid JSON matching this structure:
 {
