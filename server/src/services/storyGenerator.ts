@@ -434,6 +434,7 @@ Output ONLY valid JSON matching this structure:
 
 TITLE: ${input.title}
 PLOT: ${input.plot}
+${input.coreTension ? `\nCORE TENSION (central conflict driving all hard choices): ${input.coreTension}` : ''}
 
 BEGINNING: ${input.beginningScenario}
 
