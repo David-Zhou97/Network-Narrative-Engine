@@ -11,7 +11,7 @@ import type {
   GeneratedDialogue,
   PlayerChoice,
   HistoryEntry,
-} from './narrative';
+} from './narrative.js';
 
 // ============================================================================
 // AI Provider Interface

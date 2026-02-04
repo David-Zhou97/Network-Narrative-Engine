@@ -1,11 +1,16 @@
 /**
  * NarrativeEngine - Main orchestrator for the network narrative system
+ *
+ * New Architecture Integration:
+ * - HardChoiceGenerator: Creates meaningful dilemmas from value conflicts
+ * - NarrativeGenerator: LLM-powered content generation
+ * - EffectProcessor: Applies world rules and processes consequences
+ * - Enhanced StateManager: Tracks memories, value conflicts, ending dimensions
  */
 
 import type {
   NarrativeDefinition,
   NarrativeMetadata,
-  Character,
   EntryNode,
   EndingNode,
   NarrativeNode,
@@ -15,11 +20,29 @@ import type {
   EndingResult,
   WorldState,
   Edge,
-} from '../types';
-import type { AIProvider, TurnGenerationRequest, NarrativeContext } from '../types/ai';
-import { StateManager } from './StateManager';
-import { GraphManager, ValidationResult, GraphStats } from './GraphManager';
-import { ChoiceResolver, ResolvedChoice } from './ChoiceResolver';
+  Memory,
+  ValueConflictRecord,
+} from '../types/index.js';
+import type { AIProvider, TurnGenerationRequest, NarrativeContext } from '../types/ai.js';
+import type { StorySeed } from '../types/storySeed.js';
+import { StateManager } from './StateManager.js';
+import { GraphManager, type ValidationResult, type GraphStats } from './GraphManager.js';
+import { ChoiceResolver } from './ChoiceResolver.js';
+import { HardChoiceGenerator, type HardChoiceContext, type GeneratedHardChoice } from './HardChoiceGenerator.js';
+import { NarrativeGenerator, type NarrativeGenerationContext } from './NarrativeGenerator.js';
+import { EffectProcessor, type EffectContext, type EffectProcessingResult } from './EffectProcessor.js';
+
+/**
+ * Extended game session with new architecture data
+ */
+export interface ExtendedGameSession extends GameSession {
+  /** Reference to the story seed (if using new architecture) */
+  storySeedId?: string;
+  /** Current hard choice being presented */
+  currentHardChoice?: GeneratedHardChoice;
+  /** Effect processing result from last choice */
+  lastEffectResult?: EffectProcessingResult;
+}
 
 export class NarrativeEngine {
   private definition: NarrativeDefinition;
@@ -27,12 +50,51 @@ export class NarrativeEngine {
   private stateManager: StateManager | null = null;
   private choiceResolver: ChoiceResolver | null = null;
   private aiProvider: AIProvider | null = null;
-  private session: GameSession | null = null;
+  private session: ExtendedGameSession | null = null;
   private lastChoices: PlayerChoice[] = [];
 
-  constructor(definition: NarrativeDefinition) {
+  // New architecture components
+  private storySeed: StorySeed | null = null;
+  private hardChoiceGenerator: HardChoiceGenerator | null = null;
+  private narrativeGenerator: NarrativeGenerator | null = null;
+  private effectProcessor: EffectProcessor | null = null;
+  private currentHardChoice: GeneratedHardChoice | null = null;
+  private useNewArchitecture: boolean = false;
+
+  constructor(definition: NarrativeDefinition, storySeed?: StorySeed) {
     this.definition = definition;
     this.graphManager = new GraphManager(definition);
+
+    // If story seed is provided, use new architecture
+    if (storySeed) {
+      this.storySeed = storySeed;
+      this.useNewArchitecture = true;
+      this.initializeNewArchitecture(storySeed);
+    }
+  }
+
+  /**
+   * Initialize new architecture components
+   */
+  private initializeNewArchitecture(storySeed: StorySeed): void {
+    this.hardChoiceGenerator = new HardChoiceGenerator({
+      conflictRepeatCooldown: 3,
+      includeThirdPath: true,
+      includeBothOption: true,
+      choiceCount: 4,
+    });
+
+    this.narrativeGenerator = new NarrativeGenerator({
+      temperature: 0.75,
+      maxTokens: 1024,
+      includeEmotions: true,
+      narrationPerspective: 'second_person',
+    });
+
+    this.effectProcessor = new EffectProcessor(
+      storySeed.worldRules,
+      storySeed.endingDimensions
+    );
   }
 
   /**
@@ -40,6 +102,24 @@ export class NarrativeEngine {
    */
   setAIProvider(provider: AIProvider): void {
     this.aiProvider = provider;
+    // Also set on narrative generator if using new architecture
+    if (this.narrativeGenerator) {
+      this.narrativeGenerator.setAIProvider(provider);
+    }
+  }
+
+  /**
+   * Get the story seed (if using new architecture)
+   */
+  getStorySeed(): StorySeed | null {
+    return this.storySeed;
+  }
+
+  /**
+   * Check if using new architecture
+   */
+  isNewArchitecture(): boolean {
+    return this.useNewArchitecture;
   }
 
   /**
@@ -80,7 +160,7 @@ export class NarrativeEngine {
   /**
    * Start a new game session with a selected scenario
    */
-  startSession(scenarioId: string): GameSession {
+  startSession(scenarioId: string): ExtendedGameSession {
     const entryNode = this.graphManager.getNode(scenarioId);
     if (!entryNode || entryNode.type !== 'entry') {
       throw new Error(`Invalid scenario ID: ${scenarioId}`);
@@ -106,6 +186,11 @@ export class NarrativeEngine {
       this.stateManager.applyModifications(entryNode.onEnter);
     }
 
+    // New architecture: Initialize ending dimensions
+    if (this.useNewArchitecture && this.storySeed) {
+      this.stateManager.initializeEndingDimensions(this.storySeed.endingDimensions);
+    }
+
     // Create session
     this.session = {
       id: this.generateSessionId(),
@@ -113,6 +198,7 @@ export class NarrativeEngine {
       state: this.stateManager.getState(),
       startedAt: Date.now(),
       lastUpdatedAt: Date.now(),
+      storySeedId: this.storySeed?.id,
     };
 
     return this.session;
@@ -354,5 +440,246 @@ export class NarrativeEngine {
    */
   private generateSessionId(): string {
     return `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  // ============================================================================
+  // New Architecture Methods
+  // ============================================================================
+
+  /**
+   * Generate a hard choice for the current scene (new architecture)
+   */
+  async generateHardChoice(): Promise<GeneratedHardChoice> {
+    if (!this.useNewArchitecture || !this.storySeed || !this.hardChoiceGenerator || !this.stateManager) {
+      throw new Error('New architecture not initialized');
+    }
+
+    const presentCharacters = this.stateManager.getPresentCharacters();
+    const currentNode = this.graphManager.getNode(this.stateManager.getCurrentNodeId());
+
+    const context: HardChoiceContext = {
+      valueConflicts: this.storySeed.valueConflicts,
+      characters: this.storySeed.characters,
+      presentCharacters,
+      worldRules: this.storySeed.worldRules,
+      worldState: this.stateManager.getState(),
+      sceneContext: {
+        location: currentNode?.context?.location || 'Unknown location',
+        mood: currentNode?.context?.mood || 'Tense',
+        situation: currentNode?.description || 'A critical moment',
+      },
+    };
+
+    this.currentHardChoice = this.hardChoiceGenerator.generateHardChoice(context);
+    return this.currentHardChoice;
+  }
+
+  /**
+   * Get the current turn using new architecture
+   * Generates hard choices and uses narrative generator
+   */
+  async getCurrentTurnNewArchitecture(): Promise<TurnResult> {
+    if (!this.useNewArchitecture || !this.storySeed || !this.narrativeGenerator || !this.stateManager) {
+      throw new Error('New architecture not initialized');
+    }
+
+    const currentNodeId = this.stateManager.getCurrentNodeId();
+    const currentNode = this.graphManager.getNode(currentNodeId);
+
+    if (!currentNode) {
+      throw new Error(`Current node not found: ${currentNodeId}`);
+    }
+
+    // Check if this is an ending
+    if (currentNode.type === 'ending') {
+      return this.createEndingResultNewArchitecture(currentNode as EndingNode);
+    }
+
+    // Generate a hard choice
+    const hardChoice = await this.generateHardChoice();
+
+    // Build narrative generation context
+    const context = this.buildNarrativeContext();
+
+    // Generate the scene
+    const generatedTurn = await this.narrativeGenerator.generateHardChoiceScene(hardChoice, context);
+
+    // Store choices for later resolution
+    this.lastChoices = generatedTurn.choices;
+    this.currentHardChoice = hardChoice;
+
+    return {
+      narration: generatedTurn.narration,
+      dialogues: generatedTurn.dialogues,
+      choices: generatedTurn.choices,
+      isEnding: false,
+    };
+  }
+
+  /**
+   * Make a choice using new architecture (processes effects, world rules)
+   */
+  async makeChoiceNewArchitecture(choiceIndex: number): Promise<TurnResult> {
+    if (!this.useNewArchitecture || !this.effectProcessor || !this.stateManager || !this.currentHardChoice) {
+      throw new Error('New architecture not initialized or no current choice');
+    }
+
+    if (choiceIndex < 0 || choiceIndex >= this.currentHardChoice.choices.length) {
+      throw new Error(`Invalid choice index: ${choiceIndex}`);
+    }
+
+    const selectedChoice = this.currentHardChoice.choices[choiceIndex];
+
+    // Create effect context
+    const effectContext: EffectContext = {
+      choice: selectedChoice,
+      valueConflict: {
+        conflictId: this.currentHardChoice.valueConflict.id,
+        presentedAt: this.stateManager.getTurnCount(),
+        choiceMade: selectedChoice.favors,
+        choiceText: selectedChoice.text,
+        nodeId: this.stateManager.getCurrentNodeId(),
+      },
+      involvedCharacters: this.currentHardChoice.embodiments.map((e) => e.characterId),
+      location: this.stateManager.getState().currentNodeId,
+      turnNumber: this.stateManager.getTurnCount(),
+    };
+
+    // Process effects (world rules, memories, ending dimensions)
+    const effectResult = this.effectProcessor.processChoice(
+      selectedChoice,
+      effectContext,
+      this.stateManager
+    );
+
+    // Record the value conflict choice
+    this.stateManager.recordValueConflict(effectContext.valueConflict);
+
+    // Record in history
+    this.stateManager.recordChoice(
+      this.stateManager.getCurrentNodeId(),
+      choiceIndex,
+      selectedChoice.text
+    );
+
+    // Store effect result on session
+    if (this.session) {
+      this.session.lastEffectResult = effectResult;
+      this.session.state = this.stateManager.getState();
+      this.session.lastUpdatedAt = Date.now();
+    }
+
+    // Move to next node (use choice resolver for graph traversal)
+    if (this.choiceResolver && this.lastChoices[choiceIndex]) {
+      this.choiceResolver.resolveChoice(choiceIndex, this.lastChoices);
+      // Node transition handled by choice resolver
+    }
+
+    // Clear current hard choice
+    this.currentHardChoice = null;
+
+    // Get the new turn
+    return await this.getCurrentTurnNewArchitecture();
+  }
+
+  /**
+   * Build narrative generation context
+   */
+  private buildNarrativeContext(): NarrativeGenerationContext {
+    if (!this.storySeed || !this.stateManager) {
+      throw new Error('Cannot build context without story seed and state manager');
+    }
+
+    const worldState = this.stateManager.getState();
+
+    return {
+      storySeed: this.storySeed,
+      worldState,
+      presentCharacters: this.stateManager.getPresentCharacters(),
+      recentMemories: this.stateManager.getMemories({ limit: 5 }),
+      sceneContext: {
+        location: this.graphManager.getNode(worldState.currentNodeId)?.context?.location || 'Unknown',
+        mood: this.graphManager.getNode(worldState.currentNodeId)?.context?.mood || 'Tense',
+      },
+      recentChoices: worldState.history.slice(-3).map((h) => h.choiceText),
+    };
+  }
+
+  /**
+   * Create ending result for new architecture
+   */
+  private createEndingResultNewArchitecture(endingNode: EndingNode): TurnResult {
+    const state = this.stateManager?.getState();
+
+    // Determine ending based on dimension scores
+    let endingType = endingNode.endingType;
+    if (this.effectProcessor && state) {
+      this.effectProcessor.findClosestEnding(
+        state.endingDimensionScores,
+        this.storySeed?.endings.map((e) => ({
+          id: e.id,
+          dimensionPositions: e.dimensionPositions,
+        })) || []
+      );
+      // Could override endingType based on dimension scores
+    }
+
+    const ending: EndingResult = {
+      type: endingType,
+      title: endingNode.title,
+      epilogue: endingNode.epilogue,
+      stats: {
+        turnsPlayed: state?.turnCount ?? 0,
+        choicesMade: state?.history.length ?? 0,
+        relationshipsFormed: this.getSignificantRelationships(),
+      },
+    };
+
+    return {
+      narration: endingNode.description,
+      dialogues: [],
+      choices: [],
+      isEnding: true,
+      ending,
+    };
+  }
+
+  /**
+   * Get memories from state manager (new architecture)
+   */
+  getMemories(options?: { type?: string; limit?: number }): Memory[] {
+    if (!this.stateManager) return [];
+    return this.stateManager.getMemories(options as Parameters<StateManager['getMemories']>[0]);
+  }
+
+  /**
+   * Get value conflict history (new architecture)
+   */
+  getValueConflictHistory(): ValueConflictRecord[] {
+    if (!this.stateManager) return [];
+    return this.stateManager.getValueConflictHistory();
+  }
+
+  /**
+   * Get ending dimension scores (new architecture)
+   */
+  getEndingDimensionScores(): Record<string, number> {
+    if (!this.stateManager) return {};
+    return this.stateManager.getEndingDimensionScores();
+  }
+
+  /**
+   * Get the current hard choice being presented
+   */
+  getCurrentHardChoice(): GeneratedHardChoice | null {
+    return this.currentHardChoice;
+  }
+
+  /**
+   * Get active world rule effects
+   */
+  getActiveRuleEffects(): import('../types/index.js').ActiveRuleEffect[] {
+    if (!this.stateManager) return [];
+    return this.stateManager.getActiveRuleEffects();
   }
 }

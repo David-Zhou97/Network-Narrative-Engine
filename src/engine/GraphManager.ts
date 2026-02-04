@@ -1,5 +1,9 @@
 /**
  * GraphManager - Manages the narrative graph structure
+ *
+ * Supports both legacy node types and new architecture node types:
+ * - Legacy: entry, story, branch, converge, ending
+ * - New: anchor, transition, merge
  */
 
 import type {
@@ -8,8 +12,11 @@ import type {
   EntryNode,
   EndingNode,
   BranchNode,
+  AnchorNode,
+  TransitionNode,
+  MergeNode,
   NarrativeDefinition,
-} from '../types';
+} from '../types/index.js';
 
 export class GraphManager {
   private nodes: Map<string, NarrativeNode>;
@@ -206,7 +213,143 @@ export class GraphManager {
       storyNodes: nodesByType['story'] ?? 0,
       branchNodes: nodesByType['branch'] ?? 0,
       convergeNodes: nodesByType['converge'] ?? 0,
+      // New architecture node counts
+      anchorNodes: nodesByType['anchor'] ?? 0,
+      transitionNodes: nodesByType['transition'] ?? 0,
+      mergeNodes: nodesByType['merge'] ?? 0,
     };
+  }
+
+  // ============================================================================
+  // New Architecture Node Methods
+  // ============================================================================
+
+  /**
+   * Get all anchor nodes (key story moments)
+   */
+  getAnchorNodes(): AnchorNode[] {
+    return Array.from(this.nodes.values()).filter(
+      (node): node is AnchorNode => node.type === 'anchor'
+    );
+  }
+
+  /**
+   * Get required anchor nodes (must be visited)
+   */
+  getRequiredAnchorNodes(): AnchorNode[] {
+    return this.getAnchorNodes().filter((node) => node.required);
+  }
+
+  /**
+   * Get anchor nodes sorted by order hint
+   */
+  getAnchorNodesByOrder(): AnchorNode[] {
+    return this.getAnchorNodes().sort(
+      (a, b) => (a.orderHint ?? 0) - (b.orderHint ?? 0)
+    );
+  }
+
+  /**
+   * Get all transition nodes
+   */
+  getTransitionNodes(): TransitionNode[] {
+    return Array.from(this.nodes.values()).filter(
+      (node): node is TransitionNode => node.type === 'transition'
+    );
+  }
+
+  /**
+   * Get all merge nodes (path convergence points)
+   */
+  getMergeNodes(): MergeNode[] {
+    return Array.from(this.nodes.values()).filter(
+      (node): node is MergeNode => node.type === 'merge'
+    );
+  }
+
+  /**
+   * Check if a node is an anchor
+   */
+  isAnchorNode(nodeId: string): boolean {
+    const node = this.nodes.get(nodeId);
+    return node?.type === 'anchor';
+  }
+
+  /**
+   * Check if a node is a transition
+   */
+  isTransitionNode(nodeId: string): boolean {
+    const node = this.nodes.get(nodeId);
+    return node?.type === 'transition';
+  }
+
+  /**
+   * Check if a node is a merge point
+   */
+  isMergeNode(nodeId: string): boolean {
+    const node = this.nodes.get(nodeId);
+    return node?.type === 'merge';
+  }
+
+  /**
+   * Get an anchor node by ID
+   */
+  getAnchorNode(nodeId: string): AnchorNode | undefined {
+    const node = this.nodes.get(nodeId);
+    return node?.type === 'anchor' ? (node as AnchorNode) : undefined;
+  }
+
+  /**
+   * Get a transition node by ID
+   */
+  getTransitionNode(nodeId: string): TransitionNode | undefined {
+    const node = this.nodes.get(nodeId);
+    return node?.type === 'transition' ? (node as TransitionNode) : undefined;
+  }
+
+  /**
+   * Get a merge node by ID
+   */
+  getMergeNode(nodeId: string): MergeNode | undefined {
+    const node = this.nodes.get(nodeId);
+    return node?.type === 'merge' ? (node as MergeNode) : undefined;
+  }
+
+  /**
+   * Find the next anchor node from a given position
+   * Returns the nearest required anchor that hasn't been visited
+   */
+  findNextAnchor(visitedNodes: string[]): AnchorNode | undefined {
+    const anchors = this.getAnchorNodesByOrder();
+    const visitedSet = new Set(visitedNodes);
+
+    // Find the first unvisited required anchor
+    for (const anchor of anchors) {
+      if (!visitedSet.has(anchor.id) && anchor.required) {
+        return anchor;
+      }
+    }
+
+    // If no required anchors, return any unvisited anchor
+    return anchors.find((a) => !visitedSet.has(a.id));
+  }
+
+  /**
+   * Get all nodes of a specific type
+   */
+  getNodesByType<T extends NarrativeNode>(type: string): T[] {
+    return Array.from(this.nodes.values()).filter(
+      (node) => node.type === type
+    ) as T[];
+  }
+
+  /**
+   * Check if the graph uses new architecture (has anchor/transition/merge nodes)
+   */
+  usesNewArchitecture(): boolean {
+    return this.getAnchorNodes().length > 0 ||
+           this.getTransitionNodes().length > 0 ||
+           this.getMergeNodes().length > 0;
   }
 
   /**
@@ -280,6 +423,10 @@ export interface GraphStats {
   storyNodes: number;
   branchNodes: number;
   convergeNodes: number;
+  // New architecture node counts
+  anchorNodes: number;
+  transitionNodes: number;
+  mergeNodes: number;
 }
 
 export interface PathInfo {

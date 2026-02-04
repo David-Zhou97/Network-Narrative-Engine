@@ -1,5 +1,11 @@
 /**
  * StateManager - Manages world state throughout the narrative
+ *
+ * Enhanced for the new architecture with:
+ * - Memory tracking
+ * - Value conflict history
+ * - Ending dimension scores
+ * - Active rule effects
  */
 
 import type {
@@ -10,7 +16,11 @@ import type {
   StateModification,
   EdgeCondition,
   HistoryEntry,
-} from '../types';
+  Memory,
+  ValueConflictRecord,
+  ActiveRuleEffect,
+} from '../types/index.js';
+import type { EndingDimension } from '../types/storySeed.js';
 
 export class StateManager {
   private state: WorldState;
@@ -71,6 +81,11 @@ export class StateManager {
       currentNodeId: initialNodeId,
       turnCount: 0,
       history: [],
+      // New architecture fields
+      memories: [],
+      valueConflictHistory: [],
+      endingDimensionScores: {},
+      activeRuleEffects: [],
     };
   }
 
@@ -316,5 +331,253 @@ export class StateManager {
    */
   importState(serialized: string): void {
     this.state = JSON.parse(serialized);
+    // Ensure new fields exist for backwards compatibility
+    if (!this.state.memories) {
+      this.state.memories = [];
+    }
+    if (!this.state.valueConflictHistory) {
+      this.state.valueConflictHistory = [];
+    }
+    if (!this.state.endingDimensionScores) {
+      this.state.endingDimensionScores = {};
+    }
+    if (!this.state.activeRuleEffects) {
+      this.state.activeRuleEffects = [];
+    }
+  }
+
+  // ============================================================================
+  // Memory Management (New Architecture)
+  // ============================================================================
+
+  /**
+   * Add a memory to the state
+   */
+  addMemory(memory: Memory): void {
+    this.state.memories.push(memory);
+    // Sort by significance (most significant first)
+    this.state.memories.sort((a, b) => b.significance - a.significance);
+    // Keep only the most significant 50 memories
+    if (this.state.memories.length > 50) {
+      this.state.memories = this.state.memories.slice(0, 50);
+    }
+  }
+
+  /**
+   * Get memories, optionally filtered
+   */
+  getMemories(options?: {
+    type?: Memory['type'];
+    minSignificance?: number;
+    relatedConflict?: string;
+    limit?: number;
+  }): Memory[] {
+    let memories = [...this.state.memories];
+
+    if (options?.type) {
+      memories = memories.filter((m) => m.type === options.type);
+    }
+    if (options?.minSignificance !== undefined) {
+      memories = memories.filter((m) => m.significance >= options.minSignificance!);
+    }
+    if (options?.relatedConflict) {
+      memories = memories.filter((m) => m.relatedConflict === options.relatedConflict);
+    }
+    if (options?.limit) {
+      memories = memories.slice(0, options.limit);
+    }
+
+    return memories;
+  }
+
+  /**
+   * Mark a memory as surfaced (recalled in the narrative)
+   */
+  surfaceMemory(memoryId: string): void {
+    const memory = this.state.memories.find((m) => m.id === memoryId);
+    if (memory) {
+      memory.hasSurfaced = true;
+    }
+  }
+
+  /**
+   * Get unsurfaced memories that could be recalled
+   */
+  getUnsurfacedMemories(limit: number = 3): Memory[] {
+    return this.state.memories
+      .filter((m) => !m.hasSurfaced)
+      .slice(0, limit);
+  }
+
+  // ============================================================================
+  // Value Conflict History (New Architecture)
+  // ============================================================================
+
+  /**
+   * Record a value conflict choice
+   */
+  recordValueConflict(record: ValueConflictRecord): void {
+    this.state.valueConflictHistory.push(record);
+  }
+
+  /**
+   * Get value conflict history
+   */
+  getValueConflictHistory(): ValueConflictRecord[] {
+    return [...this.state.valueConflictHistory];
+  }
+
+  /**
+   * Get the most recent value conflict presented
+   */
+  getLastValueConflict(): ValueConflictRecord | undefined {
+    return this.state.valueConflictHistory[this.state.valueConflictHistory.length - 1];
+  }
+
+  /**
+   * Check how many times a specific value has been favored
+   */
+  countValueFavored(value: 'value1' | 'value2' | 'both' | 'neither'): number {
+    return this.state.valueConflictHistory.filter((r) => r.choiceMade === value).length;
+  }
+
+  /**
+   * Get a summary of the player's value choices
+   */
+  getValueChoiceSummary(): Record<string, number> {
+    const summary: Record<string, number> = {
+      value1: 0,
+      value2: 0,
+      both: 0,
+      neither: 0,
+    };
+
+    for (const record of this.state.valueConflictHistory) {
+      summary[record.choiceMade]++;
+    }
+
+    return summary;
+  }
+
+  // ============================================================================
+  // Ending Dimension Scores (New Architecture)
+  // ============================================================================
+
+  /**
+   * Initialize ending dimension scores
+   */
+  initializeEndingDimensions(dimensions: EndingDimension[]): void {
+    for (const dim of dimensions) {
+      // Start at the midpoint
+      this.state.endingDimensionScores[dim.id] = 0.5;
+    }
+  }
+
+  /**
+   * Update an ending dimension score
+   */
+  updateEndingDimensionScore(dimensionId: string, score: number): void {
+    // Clamp between 0 and 1
+    this.state.endingDimensionScores[dimensionId] = Math.max(0, Math.min(1, score));
+  }
+
+  /**
+   * Get all ending dimension scores
+   */
+  getEndingDimensionScores(): Record<string, number> {
+    return { ...this.state.endingDimensionScores };
+  }
+
+  /**
+   * Get a specific ending dimension score
+   */
+  getEndingDimensionScore(dimensionId: string): number {
+    return this.state.endingDimensionScores[dimensionId] ?? 0.5;
+  }
+
+  // ============================================================================
+  // Active Rule Effects (New Architecture)
+  // ============================================================================
+
+  /**
+   * Add an active rule effect
+   */
+  addActiveRuleEffect(effect: ActiveRuleEffect): void {
+    this.state.activeRuleEffects.push(effect);
+  }
+
+  /**
+   * Remove an active rule effect
+   */
+  removeActiveRuleEffect(ruleId: string): void {
+    this.state.activeRuleEffects = this.state.activeRuleEffects.filter(
+      (e) => e.ruleId !== ruleId
+    );
+  }
+
+  /**
+   * Get all active rule effects
+   */
+  getActiveRuleEffects(): ActiveRuleEffect[] {
+    return [...this.state.activeRuleEffects];
+  }
+
+  /**
+   * Decrement turns remaining on all delayed effects
+   */
+  tickDelayedEffects(): ActiveRuleEffect[] {
+    const surfacing: ActiveRuleEffect[] = [];
+
+    for (const effect of this.state.activeRuleEffects) {
+      if (effect.turnsRemaining !== undefined) {
+        effect.turnsRemaining--;
+        if (effect.turnsRemaining <= 0) {
+          surfacing.push(effect);
+        }
+      }
+    }
+
+    return surfacing;
+  }
+
+  // ============================================================================
+  // Character Relationship Helpers (New Architecture)
+  // ============================================================================
+
+  /**
+   * Get all characters with significant relationships
+   */
+  getSignificantRelationships(threshold: number = 30): CharacterInstance[] {
+    return Object.values(this.state.characters).filter(
+      (c) => Math.abs(c.relationship) >= threshold
+    );
+  }
+
+  /**
+   * Get the player's ally characters
+   */
+  getAllies(minRelationship: number = 50): CharacterInstance[] {
+    return Object.values(this.state.characters).filter(
+      (c) => c.relationship >= minRelationship
+    );
+  }
+
+  /**
+   * Get the player's rival/enemy characters
+   */
+  getRivals(maxRelationship: number = -30): CharacterInstance[] {
+    return Object.values(this.state.characters).filter(
+      (c) => c.relationship <= maxRelationship
+    );
+  }
+
+  /**
+   * Update a character's relationship
+   */
+  updateRelationship(characterId: string, change: number): void {
+    if (this.state.characters[characterId]) {
+      const newValue = this.state.characters[characterId].relationship + change;
+      this.state.characters[characterId].relationship = Math.max(-100, Math.min(100, newValue));
+    }
   }
 }

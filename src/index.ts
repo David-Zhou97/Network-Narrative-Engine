@@ -5,10 +5,10 @@
  */
 
 // Core types
-export * from './types';
+export * from './types/index.js';
 
 // Engine components
-export * from './engine';
+export * from './engine/index.js';
 
 // AI integration
-export * from './ai';
+export * from './ai/index.js';
