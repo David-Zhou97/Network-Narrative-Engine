@@ -539,104 +539,107 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
           </motion.div>
         )}
 
-        {step === 'world' && (
+        {step === 'conflicts' && (
           <motion.div
-            key="world"
+            key="conflicts"
             className={styles.stepContent}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
           >
-            <h2 className={styles.stepTitle}>World Settings</h2>
+            <h2 className={styles.stepTitle}>Value Conflicts</h2>
             <p className={styles.stepDescription}>
-              Define the world where your story takes place.
+              Define 3-5 pairs of opposing values that drive the difficult choices in your story.
+              These create "no right answer" dilemmas where players must sacrifice one value for another.
             </p>
 
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Setting *</label>
-              <input
-                type="text"
-                className={styles.input}
-                placeholder="A rain-soaked cyberpunk metropolis, a medieval castle, a space station..."
-                value={worldSettings.setting}
-                onChange={e => setWorldSettings({ ...worldSettings, setting: e.target.value })}
-              />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Time Period</label>
-              <input
-                type="text"
-                className={styles.input}
-                placeholder="Near future (2087), Victorian era, Fantasy medieval..."
-                value={worldSettings.timePeriod}
-                onChange={e => setWorldSettings({ ...worldSettings, timePeriod: e.target.value })}
-              />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Mood/Atmosphere *</label>
-              <input
-                type="text"
-                className={styles.input}
-                placeholder="Tense and paranoid, cozy yet mysterious, dark and oppressive..."
-                value={worldSettings.mood}
-                onChange={e => setWorldSettings({ ...worldSettings, mood: e.target.value })}
-              />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Key Themes (optional - what moral questions should players face?)</label>
-              <div className={styles.themeInputRow}>
-                <input
-                  type="text"
-                  className={styles.input}
-                  placeholder="e.g., 'loyalty vs truth', 'power corrupts'"
-                  id="theme-input"
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addTheme((e.target as HTMLInputElement).value);
-                      (e.target as HTMLInputElement).value = '';
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  className={styles.addThemeButton}
-                  onClick={() => {
-                    const input = document.getElementById('theme-input') as HTMLInputElement;
-                    if (input && input.value.trim()) {
-                      addTheme(input.value);
-                      input.value = '';
-                    }
-                  }}
-                >
-                  Add
-                </button>
-              </div>
-              <div className={styles.themeList}>
-                {worldSettings.themes.map(theme => (
-                  <span key={theme} className={styles.themeTag}>
-                    {theme}
-                    <button type="button" onClick={() => removeTheme(theme)}>x</button>
-                  </span>
+            <div className={styles.presetSection}>
+              <h3 className={styles.presetTitle}>Quick Presets</h3>
+              <div className={styles.presetGrid}>
+                {COMMON_VALUE_CONFLICTS.map((preset, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className={styles.presetButton}
+                    onClick={() => {
+                      const emptyIndex = valueConflicts.findIndex(c => !c.value1.trim() && !c.value2.trim());
+                      if (emptyIndex >= 0) {
+                        applyPresetConflict(preset, emptyIndex);
+                      }
+                    }}
+                  >
+                    {preset.value1} vs {preset.value2}
+                  </button>
                 ))}
               </div>
-              <span className={styles.hint}>
-                Press Enter to add. Themes guide the moral dilemmas in your story.
-              </span>
             </div>
 
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Special Rules (optional)</label>
-              <textarea
-                className={styles.textarea}
-                placeholder="Magic has a cost, information is currency, trust is fragile..."
-                value={worldSettings.specialRules}
-                onChange={e => setWorldSettings({ ...worldSettings, specialRules: e.target.value })}
-                rows={2}
-              />
+            <div className={styles.conflictList}>
+              {valueConflicts.map((conflict, index) => (
+                <div key={index} className={styles.conflictCard}>
+                  <div className={styles.conflictHeader}>
+                    <span className={styles.conflictNumber}>Value Conflict {index + 1}</span>
+                    {valueConflicts.length > 3 && (
+                      <button
+                        type="button"
+                        className={styles.removeButton}
+                        onClick={() => removeValueConflict(index)}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  <div className={styles.conflictFields}>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label className={styles.label}>Value 1 *</label>
+                        <input
+                          type="text"
+                          className={styles.input}
+                          placeholder="e.g., Truth, Loyalty, Survival"
+                          value={conflict.value1}
+                          onChange={e => updateValueConflict(index, { value1: e.target.value })}
+                        />
+                      </div>
+
+                      <span className={styles.vsLabel}>vs</span>
+
+                      <div className={styles.formGroup}>
+                        <label className={styles.label}>Value 2 *</label>
+                        <input
+                          type="text"
+                          className={styles.input}
+                          placeholder="e.g., Peace, Justice, Dignity"
+                          value={conflict.value2}
+                          onChange={e => updateValueConflict(index, { value2: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>Description (optional)</label>
+                      <input
+                        type="text"
+                        className={styles.input}
+                        placeholder="Brief description of the dilemma this creates"
+                        value={conflict.description}
+                        onChange={e => updateValueConflict(index, { description: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {valueConflicts.length < 5 && (
+              <button type="button" className={styles.addButton} onClick={addValueConflict}>
+                <PlusIcon /> Add Value Conflict
+              </button>
+            )}
+
+            <div className={styles.hint}>
+              At least 3 value conflicts are required. These will be woven into the story's choices.
             </div>
           </motion.div>
         )}
@@ -747,6 +750,74 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
             <button type="button" className={styles.addButton} onClick={addCharacter}>
               <PlusIcon /> Add Character
             </button>
+          </motion.div>
+        )}
+
+        {step === 'rules' && (
+          <motion.div
+            key="rules"
+            className={styles.stepContent}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
+            <h2 className={styles.stepTitle}>World Rules</h2>
+            <p className={styles.stepDescription}>
+              Define the causal laws that govern your story world. These rules determine how actions lead to consequences.
+            </p>
+
+            <div className={styles.rulesList}>
+              {worldRules.map((rule, index) => (
+                <div key={index} className={styles.ruleCard}>
+                  <div className={styles.ruleHeader}>
+                    <span className={styles.ruleNumber}>Rule {index + 1}</span>
+                    {worldRules.length > 5 && (
+                      <button
+                        type="button"
+                        className={styles.removeButton}
+                        onClick={() => removeWorldRule(index)}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  <div className={styles.ruleFields}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>Category</label>
+                      <select
+                        className={styles.select}
+                        value={rule.category}
+                        onChange={e => updateWorldRule(index, { category: e.target.value as WorldRuleInput['category'] })}
+                      >
+                        {WORLD_RULE_CATEGORIES.map(cat => (
+                          <option key={cat.value} value={cat.value}>{cat.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>Rule *</label>
+                      <input
+                        type="text"
+                        className={styles.input}
+                        placeholder="e.g., Violence always creates revenge cycles"
+                        value={rule.rule}
+                        onChange={e => updateWorldRule(index, { rule: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button type="button" className={styles.addButton} onClick={addWorldRule}>
+              <PlusIcon /> Add World Rule
+            </button>
+
+            <div className={styles.hint}>
+              At least 5 world rules are required. These create consistent cause-and-effect in your story.
+            </div>
           </motion.div>
         )}
 
