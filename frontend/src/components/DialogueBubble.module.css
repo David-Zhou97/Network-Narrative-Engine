@@ -80,7 +80,15 @@
   line-height: 1.55;
   color: rgba(255, 255, 255, 0.88);
   margin: 0;
+}
+
+.action {
   font-style: italic;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.speech {
+  font-style: normal;
 }
 
 /* Font size variations */

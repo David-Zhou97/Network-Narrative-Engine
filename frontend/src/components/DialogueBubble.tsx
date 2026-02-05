@@ -8,6 +8,52 @@ interface DialogueBubbleProps {
   emotion?: string;
 }
 
+// Segment type for parsed dialogue text
+interface TextSegment {
+  type: 'action' | 'speech';
+  content: string;
+}
+
+// Parse dialogue text to separate actions (in asterisks) from spoken dialogue
+function parseDialogueText(text: string): TextSegment[] {
+  const segments: TextSegment[] = [];
+  // Match text within asterisks as actions
+  const regex = /(\*[^*]+\*)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    // Add speech segment before the action (if any)
+    if (match.index > lastIndex) {
+      const speechContent = text.slice(lastIndex, match.index).trim();
+      if (speechContent) {
+        segments.push({ type: 'speech', content: speechContent });
+      }
+    }
+    // Add action segment (without the asterisks)
+    const actionContent = match[1].slice(1, -1).trim();
+    if (actionContent) {
+      segments.push({ type: 'action', content: actionContent });
+    }
+    lastIndex = regex.lastIndex;
+  }
+
+  // Add remaining speech after the last action (if any)
+  if (lastIndex < text.length) {
+    const speechContent = text.slice(lastIndex).trim();
+    if (speechContent) {
+      segments.push({ type: 'speech', content: speechContent });
+    }
+  }
+
+  // If no segments were found, treat the whole text as speech
+  if (segments.length === 0) {
+    segments.push({ type: 'speech', content: text });
+  }
+
+  return segments;
+}
+
 export function DialogueBubble({ characterId, text, emotion }: DialogueBubbleProps): React.ReactElement {
   const { loadedStory } = useGame();
 
@@ -17,6 +63,9 @@ export function DialogueBubble({ characterId, text, emotion }: DialogueBubblePro
 
   // Generate a consistent color for the character based on their ID
   const characterColor = getCharacterColor(characterId);
+
+  // Parse the dialogue text to separate actions from speech
+  const segments = parseDialogueText(text);
 
   return (
     <div className={styles.container}>
@@ -34,7 +83,15 @@ export function DialogueBubble({ characterId, text, emotion }: DialogueBubblePro
             </span>
           )}
         </div>
-        <p className={styles.text}>"{text}"</p>
+        <p className={styles.text}>
+          {segments.map((segment, index) => (
+            segment.type === 'action' ? (
+              <span key={index} className={styles.action}>{segment.content} </span>
+            ) : (
+              <span key={index} className={styles.speech}>"{segment.content}" </span>
+            )
+          ))}
+        </p>
       </div>
     </div>
   );
