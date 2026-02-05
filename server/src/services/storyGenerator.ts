@@ -132,10 +132,10 @@ export interface GeneratedStorySeed {
 }
 
 const DEFAULT_CONFIG: GraphGenerationConfig = {
-  minStoryNodes: 8,
-  maxStoryNodes: 15,
+  minStoryNodes: 25,
+  maxStoryNodes: 40,
   entryScenarios: 2,
-  branchingFactor: 3,
+  branchingFactor: 2, // Reduced from 3 to keep total nodes under 200
   conflictIntensity: 0.8,
   includeBranchNodes: true,
   includeConvergeNodes: true,
@@ -409,7 +409,7 @@ export class StoryGeneratorService {
     config: GraphGenerationConfig
   ): Promise<{ nodes: GeneratedNode[]; edges: GeneratedEdge[] }> {
     const systemPrompt = `You are a master narrative designer creating the SKELETON of an interactive story.
-Your goal is to create the core structure using the following NODE TYPES:
+Your goal is to create an EXTENDED narrative with many story beats, plot twists, and dramatic turns.
 
 NODE TYPES:
 1. ENTRY nodes: Starting scenarios where the player begins
@@ -419,12 +419,26 @@ NODE TYPES:
 5. ENDING nodes: Terminal outcomes
 
 CRITICAL DESIGN PRINCIPLES:
-1. Create a clear narrative arc with ANCHOR nodes as the key beats
+1. Create an EXTENDED narrative arc with many ANCHOR nodes as key beats
 2. Anchor nodes are REQUIRED checkpoints - all story paths must visit them
 3. Use TRANSITION nodes between anchors for AI-generated content
 4. Use MERGE nodes when branching paths need to reconverge
 5. Entry nodes introduce the player to the world
 6. Ending nodes conclude the story
+
+STORY STRUCTURE - CREATE A LONG, ENGAGING JOURNEY:
+- ACT 1 (Setup): 2-3 anchors establishing the world and conflict
+- ACT 2A (Rising Action): 3-4 anchors with escalating challenges
+- MIDPOINT TWIST: 1 anchor with a major revelation or reversal
+- ACT 2B (Complications): 3-4 anchors where everything gets harder
+- DARK MOMENT: 1 anchor where all seems lost
+- ACT 3 (Resolution): 2-3 anchors leading to climax and ending
+
+PLOT TWIST REQUIREMENTS:
+- Include at least ONE major betrayal or revelation at the midpoint
+- Include at least ONE false victory that leads to complications
+- Include at least ONE "all is lost" moment before the climax
+- Subvert expectations - allies may have hidden agendas, enemies may have sympathetic reasons
 
 CRITICAL: NO DEAD ENDS ALLOWED!
 - EVERY non-ending node MUST have at least one outgoing edge
@@ -504,7 +518,7 @@ Output this exact JSON structure:
   ]
 }`;
 
-    const userPrompt = `Create the SKELETON (main spine) for this story using the new node architecture:
+    const userPrompt = `Create an EXTENDED SKELETON (main spine) for this story with many story beats and plot twists:
 
 TITLE: ${input.title}
 PLOT: ${input.plot}
@@ -518,16 +532,30 @@ SETTING: ${input.worldSettings.setting}
 MOOD: ${input.worldSettings.mood}
 CHARACTERS: ${characters.map(c => `${c.name} (${c.id})`).join(', ')}
 
-REQUIREMENTS:
+REQUIREMENTS FOR A LONG, ENGAGING STORY:
 - Create ${config.entryScenarios} ENTRY node(s) as starting points
-- Create 3-5 ANCHOR nodes as key story moments (with orderHint 1, 2, 3...)
-- Create 2-3 TRANSITION nodes as connective tissue between anchors
-- Create 1-2 MERGE nodes where branching paths converge
+- Create 12-18 ANCHOR nodes following this structure:
+  * ACT 1 (orderHint 1-3): Setup anchors - introduce world, characters, initial conflict
+  * ACT 2A (orderHint 4-7): Rising action - escalating challenges, building stakes
+  * MIDPOINT (orderHint 8): Major twist - betrayal, revelation, or dramatic reversal
+  * ACT 2B (orderHint 9-12): Complications - consequences of midpoint, harder challenges
+  * DARK MOMENT (orderHint 13): All seems lost - lowest point for protagonist
+  * ACT 3 (orderHint 14-16): Resolution - climax and paths to endings
+- Create 6-10 TRANSITION nodes as connective tissue between anchors
+- Create 2-4 MERGE nodes where branching paths converge
 - Create ${input.endingScenarios.length} ENDING nodes
-- Connect nodes with edges showing the main narrative flow
-- All ANCHOR nodes should have required=true and appropriate orderHint values
-- TRANSITION nodes should have purpose set (bridge/escalation/relief/revelation/preparation)
-- MERGE nodes should specify how different paths are reconciled
+
+PLOT TWIST REQUIREMENTS:
+- At least ONE anchor should be a BETRAYAL or shocking revelation
+- At least ONE anchor should be a FALSE VICTORY that leads to worse complications
+- At least ONE anchor should be an "ALL IS LOST" moment
+- Use REVELATION transitions to build mystery and uncover hidden truths
+- Use ESCALATION transitions to raise stakes progressively
+
+NODE SPECIFICATIONS:
+- All ANCHOR nodes should have required=true and appropriate orderHint values (1-16+)
+- TRANSITION nodes should have purpose: bridge/escalation/relief/revelation/preparation
+- MERGE nodes should specify mergeStrategy: acknowledge_differences/common_ground/forced_unity
 
 CRITICAL CONNECTIVITY REQUIREMENTS:
 - EVERY entry node must have an edge to the first anchor or a transition
@@ -537,13 +565,13 @@ CRITICAL CONNECTIVITY REQUIREMENTS:
 - The LAST anchor (highest orderHint) must connect to endings
 - NO NODE except endings should be a dead end!
 
-Generate the skeleton JSON:`;
+Generate the extended skeleton JSON:`;
 
     const response = await this.aiService.complete({
       systemPrompt,
       userPrompt,
       temperature: 0.7,
-      maxTokens: 3000,
+      maxTokens: 6000, // Increased for longer stories with more nodes
     });
 
     return this.parseJSON(response);
@@ -564,7 +592,8 @@ Generate the skeleton JSON:`;
   ): Promise<{ nodes: GeneratedNode[]; edges: GeneratedEdge[] }> {
     // Find what edges already exist from this node
     const existingOutgoingEdges = existingEdges.filter(e => e.from === sourceNode.id);
-    const edgesNeeded = 3 - existingOutgoingEdges.length;
+    // Reduced from 3 to 2 edges per node to keep total nodes under 200
+    const edgesNeeded = 2 - existingOutgoingEdges.length;
 
     if (edgesNeeded <= 0) {
       return { nodes: [], edges: [] };
@@ -576,7 +605,7 @@ Generate the skeleton JSON:`;
       .map(n => `${n.id} (${n.type}): ${n.title || n.description?.slice(0, 50)}`);
 
     const systemPrompt = `You are a narrative designer adding BRANCHING CHOICES to a story node.
-Create meaningful choices that lead to different outcomes using the new node architecture.
+Create meaningful choices that lead to different outcomes, with potential for PLOT TWISTS.
 
 NODE TYPES YOU CAN CREATE:
 1. TRANSITION nodes: Connective scenes between key moments (purpose: bridge/escalation/relief/revelation/preparation)
@@ -591,6 +620,13 @@ CRITICAL DESIGN PRINCIPLES:
 4. Include conflict, benefit, and cost for each choice
 5. Use TRANSITION nodes for new intermediate content
 6. Use MERGE nodes when paths need to converge
+
+PLOT TWIST OPPORTUNITIES:
+- Consider if a choice could lead to an unexpected REVELATION
+- Could one path lead to a BETRAYAL by a trusted character?
+- Could success on one path be a FALSE VICTORY with hidden costs?
+- Could a difficult choice lead to an unexpected ally or enemy?
+- Use "revelation" purpose transitions to uncover hidden truths
 
 CRITICAL: NO DEAD ENDS!
 - If you create a NEW node, it MUST have at least one outgoing edge
@@ -671,10 +707,11 @@ ${Object.keys(worldState.player).join(', ')}
 REQUIREMENTS:
 - Create ${edgesNeeded} NEW choice(s) that are DIFFERENT from existing edges
 - Each choice needs a dilemma with clear trade-offs
-- Create TRANSITION nodes for new intermediate content
+- Create TRANSITION nodes for new intermediate content (use "revelation" purpose for plot twists)
 - Create MERGE nodes when paths should converge
 - Prefer connecting to existing anchor/merge/ending nodes when it makes narrative sense
 - If creating new nodes, they should eventually connect to existing nodes
+- Consider opportunities for PLOT TWISTS: betrayals, revelations, false victories
 
 CRITICAL - NO DEAD ENDS:
 - If you create ANY new nodes, you MUST also create edges FROM those new nodes TO existing nodes
@@ -850,8 +887,8 @@ Generate the world state JSON:`;
     worldState: GeneratedWorldState,
     config: GraphGenerationConfig
   ): Promise<{ nodes: GeneratedNode[]; edges: GeneratedEdge[] }> {
-    const systemPrompt = `You are a master narrative designer creating an interactive story graph.
-Your goal is to create a compelling narrative where EVERY CHOICE HAS MEANINGFUL CONSEQUENCES.
+    const systemPrompt = `You are a master narrative designer creating an EXTENDED interactive story graph.
+Your goal is to create a LONG, compelling narrative with MANY story beats, PLOT TWISTS, and meaningful consequences.
 
 CRITICAL DESIGN PRINCIPLES:
 1. NO PERFECT CHOICES - Every option should have clear trade-offs
@@ -860,6 +897,23 @@ CRITICAL DESIGN PRINCIPLES:
 4. COMPETING LOYALTIES - Helping one character should risk disappointing another
 5. HIDDEN CONSEQUENCES - Some effects of choices should be delayed or unexpected
 6. SACRIFICE - Sometimes the best outcomes require giving up something valuable
+7. PLOT TWISTS - Include betrayals, revelations, and dramatic reversals
+8. LONG JOURNEY - Create an extended story with multiple acts and many story beats
+
+STORY STRUCTURE FOR EXTENDED NARRATIVES:
+- ACT 1 (Setup, 3-5 nodes): Establish world, characters, initial conflict
+- ACT 2A (Rising Action, 5-8 nodes): Escalating challenges, building stakes
+- MIDPOINT TWIST (1-2 nodes): Major revelation, betrayal, or reversal
+- ACT 2B (Complications, 5-8 nodes): Consequences of twist, harder challenges
+- DARK MOMENT (1-2 nodes): All seems lost, lowest point
+- ACT 3 (Resolution, 4-6 nodes): Climax and paths to various endings
+
+REQUIRED PLOT TWIST TYPES (include at least one of each):
+- BETRAYAL: A trusted ally reveals hidden agenda or switches sides
+- FALSE VICTORY: Initial success that leads to worse complications
+- REVELATION: Shocking truth that changes everything the player believed
+- REVERSAL: A clear villain shows sympathetic motivations, or vice versa
+- ALL IS LOST: Moment where the protagonist loses everything
 
 CONFLICT TYPES TO USE:
 - Personal vs Greater Good (save one vs save many)
@@ -920,7 +974,7 @@ Output this exact JSON structure (required fields shown):
   ]
 }`;
 
-    const userPrompt = `Create a narrative graph for:
+    const userPrompt = `Create an EXTENDED narrative graph with MANY story beats and PLOT TWISTS:
 
 TITLE: ${input.title}
 PLOT: ${input.plot}
@@ -945,27 +999,39 @@ Player attributes: ${Object.keys(worldState.player).join(', ')}
 Flags: ${Object.keys(worldState.flags).join(', ')}
 Resources: ${Object.keys(worldState.resources).join(', ')}
 
-REQUIREMENTS:
+REQUIREMENTS FOR EXTENDED STORY:
 - Create ${config.entryScenarios} entry nodes (different starting points)
-- Create ${config.minStoryNodes}-${config.maxStoryNodes} story nodes
+- Create ${config.minStoryNodes}-${config.maxStoryNodes} story nodes following this structure:
+  * ACT 1 (3-5 nodes): Setup - introduce world, characters, and initial conflict
+  * ACT 2A (5-8 nodes): Rising Action - escalating challenges, building stakes
+  * MIDPOINT TWIST (1-2 nodes): Major betrayal, revelation, or dramatic reversal
+  * ACT 2B (5-8 nodes): Complications - consequences of twist, everything gets harder
+  * DARK MOMENT (1-2 nodes): All is lost - protagonist at their lowest point
+  * ACT 3 (4-6 nodes): Resolution - climax and paths to various endings
 - Create ${input.endingScenarios.length} ending nodes matching the user's endings
-${config.includeBranchNodes ? '- Include 1-2 branch nodes for state-based automatic routing' : ''}
-${config.includeConvergeNodes ? '- Include 1-2 converge nodes where different paths meet' : ''}
-- Each story node should have exactly 3 outgoing edges (choices)
+${config.includeBranchNodes ? '- Include 2-3 branch nodes for state-based automatic routing' : ''}
+${config.includeConvergeNodes ? '- Include 2-4 converge nodes where different paths meet' : ''}
+- Each story node should have exactly 2 outgoing edges (choices) to keep total nodes under 200
 - EVERY CHOICE must have meaningful trade-offs documented in conflict/benefit/cost
 - Conflict intensity: ${Math.round(config.conflictIntensity * 100)}% (higher = more agonizing choices)
 
+REQUIRED PLOT TWISTS (mark these clearly in node descriptions):
+- At least ONE "betrayal" node where a trusted character reveals hidden motives
+- At least ONE "false_victory" node where initial success leads to complications
+- At least ONE "revelation" node with a shocking truth that changes everything
+- At least ONE "all_is_lost" node where the protagonist loses everything
+
 CRITICAL - NO DEAD ENDS ALLOWED:
 - EVERY entry node must have outgoing edges to story nodes
-- EVERY story node must have exactly 3 outgoing edges leading to other story nodes or endings
+- EVERY story node must have exactly 2 outgoing edges leading to other story nodes or endings
 - EVERY converge node must have outgoing edges to story nodes or endings
 - The ONLY nodes without outgoing edges should be ENDING nodes
 - Create a COMPLETE graph where every path eventually leads to an ending
 - Before finishing, verify: for each non-ending node, there must be at least one edge with that node as "from"
 
-REMEMBER: The player should feel the weight of every decision. No easy outs.
+REMEMBER: The player should feel the weight of every decision. Create a LONG journey with MANY twists before reaching the end.
 
-Generate the complete graph JSON:`;
+Generate the complete extended graph JSON:`;
 
     const response = await this.aiService.complete({
       systemPrompt,
@@ -1356,8 +1422,8 @@ Generate the edge JSON:`;
       const outgoing = graph.edges.filter(e => e.from === node.id);
       if (outgoing.length === 0) {
         warnings.push(`Dead end: ${node.id} (${node.type}) has no outgoing edges`);
-      } else if (outgoing.length < 3 && (node.type === 'story' || node.type === 'anchor')) {
-        warnings.push(`${node.id} has only ${outgoing.length} choices (recommend 3)`);
+      } else if (outgoing.length < 2 && (node.type === 'story' || node.type === 'anchor')) {
+        warnings.push(`${node.id} has only ${outgoing.length} choices (recommend 2)`);
       }
     }
 
