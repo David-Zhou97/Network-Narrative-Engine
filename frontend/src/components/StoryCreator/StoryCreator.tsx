@@ -11,7 +11,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { apiClient } from '../../api/client';
+import { apiClient, type StreamingProgressEvent } from '../../api/client';
 import type {
   StoryCreationInput,
   CharacterInput,
@@ -110,6 +110,14 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState('');
+
+  // Streaming progress state
+  const [nodesGenerated, setNodesGenerated] = useState(0);
+  const [edgesGenerated, setEdgesGenerated] = useState(0);
+  const [currentBranch, setCurrentBranch] = useState(0);
+  const [totalBranches, setTotalBranches] = useState(0);
+  const [totalSteps, setTotalSteps] = useState(0);
+  const [currentStep, setCurrentStep] = useState(0);
 
   // Basic info
   const [title, setTitle] = useState('');
@@ -214,7 +222,15 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
     setIsGenerating(true);
     setStep('generating');
     setError(null);
-    setGenerationProgress('Preparing story input...');
+    setGenerationProgress('Connecting to AI...');
+
+    // Reset streaming progress state
+    setNodesGenerated(0);
+    setEdgesGenerated(0);
+    setCurrentBranch(0);
+    setTotalBranches(0);
+    setTotalSteps(0);
+    setCurrentStep(0);
 
     try {
       const input: StoryCreationInput = {
@@ -230,19 +246,52 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
         endingScenarios: endings,
       };
 
-      setGenerationProgress('Generating characters and world state...');
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Handle streaming events
+      const handleStreamEvent = (event: StreamingProgressEvent) => {
+        switch (event.type) {
+          case 'start':
+            setGenerationProgress(event.message);
+            setTotalSteps(event.totalSteps);
+            break;
+          case 'step':
+            setGenerationProgress(event.message);
+            setCurrentStep(event.step);
+            break;
+          case 'node_generated':
+            setNodesGenerated(prev => prev + 1);
+            setGenerationProgress(`Generated node: ${event.node.title}`);
+            break;
+          case 'edge_generated':
+            setEdgesGenerated(prev => prev + 1);
+            break;
+          case 'branch_start':
+            setCurrentBranch(event.branchIndex);
+            setTotalBranches(event.totalBranches);
+            setGenerationProgress(`Building branch ${event.branchIndex + 1}/${event.totalBranches}...`);
+            break;
+          case 'branch_complete':
+            setGenerationProgress(`Branch ${event.branchIndex + 1} complete: ${event.nodesGenerated} nodes, ${event.edgesGenerated} choices`);
+            break;
+          case 'error':
+            if (!event.recoverable) {
+              setError(event.message);
+            } else {
+              console.warn('Recoverable error:', event.message);
+            }
+            break;
+          case 'complete':
+            setGenerationProgress('Story generated successfully!');
+            break;
+        }
+      };
 
-      setGenerationProgress('Building narrative graph with AI...');
-      const response = await apiClient.generateStory(input, config);
+      const response = await apiClient.generateStoryStreaming(input, config, handleStreamEvent);
 
       if (!response.success || !response.graph) {
         throw new Error(response.error || 'Failed to generate story');
       }
 
-      setGenerationProgress('Story generated successfully!');
       await new Promise(resolve => setTimeout(resolve, 500));
-
       onGenerated(response.graph);
     } catch (err) {
       console.error('Generation error:', err);
@@ -1033,6 +1082,41 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
             </div>
             <h2 className={styles.generatingTitle}>Generating Your Story</h2>
             <p className={styles.generatingStatus}>{generationProgress}</p>
+
+            {/* Real-time progress stats */}
+            {(nodesGenerated > 0 || edgesGenerated > 0 || totalBranches > 0) && (
+              <motion.div
+                className={styles.progressStats}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <div className={styles.progressStatItem}>
+                  <span className={styles.progressStatValue}>{nodesGenerated}</span>
+                  <span className={styles.progressStatLabel}>Scenes</span>
+                </div>
+                <div className={styles.progressStatItem}>
+                  <span className={styles.progressStatValue}>{edgesGenerated}</span>
+                  <span className={styles.progressStatLabel}>Choices</span>
+                </div>
+                {totalBranches > 0 && (
+                  <div className={styles.progressStatItem}>
+                    <span className={styles.progressStatValue}>{currentBranch + 1}/{totalBranches}</span>
+                    <span className={styles.progressStatLabel}>Branches</span>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* Progress bar */}
+            {totalSteps > 0 && (
+              <div className={styles.progressBarContainer}>
+                <div
+                  className={styles.progressBar}
+                  style={{ width: `${Math.min(100, (currentStep / totalSteps) * 100)}%` }}
+                />
+              </div>
+            )}
+
             <p className={styles.generatingHint}>
               The AI is crafting a narrative filled with difficult choices and meaningful consequences...
             </p>
