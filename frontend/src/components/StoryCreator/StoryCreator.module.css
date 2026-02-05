@@ -719,3 +719,53 @@
 .ruleFields .formGroup {
   margin-bottom: 0;
 }
+
+/* Streaming Progress Stats */
+.progressStats {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin: 1.5rem 0;
+  padding: 1rem 2rem;
+  background: rgba(30, 30, 50, 0.5);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: 12px;
+}
+
+.progressStatItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.progressStatValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #7c3aed;
+}
+
+.progressStatLabel {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Progress Bar */
+.progressBarContainer {
+  width: 100%;
+  max-width: 400px;
+  height: 6px;
+  background: rgba(124, 58, 237, 0.2);
+  border-radius: 3px;
+  margin: 1rem 0;
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  background: linear-gradient(90deg, #7c3aed 0%, #6366f1 100%);
+  border-radius: 3px;
+  transition: width 0.3s ease-out;
+}

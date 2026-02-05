@@ -10,6 +10,17 @@ import type {
   GeneratedEdge,
 } from '../../../src/types/storyCreation';
 
+// Streaming progress event types (matches server-side types)
+export type StreamingProgressEvent =
+  | { type: 'start'; message: string; totalSteps: number }
+  | { type: 'step'; step: number; message: string; data?: unknown }
+  | { type: 'node_generated'; node: GeneratedNode }
+  | { type: 'edge_generated'; edge: GeneratedEdge }
+  | { type: 'branch_start'; branchIndex: number; totalBranches: number; sourceNode: string }
+  | { type: 'branch_complete'; branchIndex: number; nodesGenerated: number; edgesGenerated: number }
+  | { type: 'error'; message: string; recoverable: boolean }
+  | { type: 'complete'; graph: GeneratedGraph };
+
 export interface CompletionRequest {
   systemPrompt: string;
   userPrompt: string;
@@ -118,6 +129,112 @@ export class APIClient {
       return response.json();
     } catch (err) {
       // Handle network errors
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      if (message.includes('fetch') || message.includes('network') || message.includes('Failed to fetch')) {
+        return {
+          success: false,
+          error: 'Unable to connect to the server. Please ensure the backend is running (npm run dev:server).',
+        };
+      }
+      return {
+        success: false,
+        error: message,
+      };
+    }
+  }
+
+  /**
+   * Generate a story graph with real-time streaming progress updates.
+   * Uses Server-Sent Events (SSE) for real-time feedback.
+   */
+  async generateStoryStreaming(
+    input: StoryCreationInput,
+    config: Partial<GraphGenerationConfig> | undefined,
+    onEvent: (event: StreamingProgressEvent) => void
+  ): Promise<StoryGenerationResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/generate-story-stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ input, config }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        return {
+          success: false,
+          error: error.message || error.error || `API error: ${response.status}`,
+        };
+      }
+
+      if (!response.body) {
+        return {
+          success: false,
+          error: 'No response body received',
+        };
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finalGraph: GeneratedGraph | undefined;
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Parse SSE events from buffer
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr) {
+              try {
+                const event = JSON.parse(jsonStr) as StreamingProgressEvent;
+                onEvent(event);
+
+                // Capture the final graph
+                if (event.type === 'complete') {
+                  finalGraph = event.graph;
+                }
+
+                // Handle errors
+                if (event.type === 'error' && !event.recoverable) {
+                  return {
+                    success: false,
+                    error: event.message,
+                  };
+                }
+              } catch (parseError) {
+                console.warn('Failed to parse SSE event:', parseError);
+              }
+            }
+          }
+        }
+      }
+
+      if (finalGraph) {
+        return {
+          success: true,
+          graph: finalGraph,
+          warnings: finalGraph.warnings,
+        };
+      }
+
+      return {
+        success: false,
+        error: 'Stream ended without complete event',
+      };
+    } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       if (message.includes('fetch') || message.includes('network') || message.includes('Failed to fetch')) {
         return {
