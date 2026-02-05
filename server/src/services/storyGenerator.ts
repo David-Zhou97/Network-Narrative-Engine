@@ -304,19 +304,22 @@ export class StoryGeneratorService {
       throw new Error(`Skeleton generation failed: ${message}`);
     }
 
-    // Step 4+: Generate branches for each story node
+    // Step 4+: Generate branches for each anchor/transition node that needs choices
     const allNodes = [...skeleton.nodes];
     const allEdges = [...skeleton.edges];
-    const storyNodes = skeleton.nodes.filter(n => n.type === 'story');
+    // Branch from anchor nodes and transition nodes (not from entry, merge, or ending nodes)
+    const branchableNodes = skeleton.nodes.filter(n =>
+      n.type === 'anchor' || n.type === 'transition' || n.type === 'story'
+    );
 
-    for (let i = 0; i < storyNodes.length; i++) {
-      const node = storyNodes[i];
+    for (let i = 0; i < branchableNodes.length; i++) {
+      const node = branchableNodes[i];
       const stepNum = 4 + i;
 
       yield {
         type: 'branch_start',
         branchIndex: i + 1,
-        totalBranches: storyNodes.length,
+        totalBranches: branchableNodes.length,
         sourceNode: node.id,
       };
       yield { type: 'step', step: stepNum, message: `Generating branches for "${node.title || node.id}"...` };
@@ -384,8 +387,12 @@ export class StoryGeneratorService {
   }
 
   /**
-   * Generate the story skeleton: entry nodes, main story path, and ending nodes
-   * This is a smaller, focused generation that establishes the core structure
+   * Generate the story skeleton using the new node architecture:
+   * - Entry nodes: Starting scenarios
+   * - Anchor nodes: Key moments all paths must go through
+   * - Transition nodes: AI-generated connective tissue (placeholders for now)
+   * - Merge nodes: Where multiple paths converge
+   * - Ending nodes: Terminal outcomes
    */
   private async generateStorySkeleton(
     input: StoryCreationInput,
@@ -394,22 +401,29 @@ export class StoryGeneratorService {
     config: GraphGenerationConfig
   ): Promise<{ nodes: GeneratedNode[]; edges: GeneratedEdge[] }> {
     const systemPrompt = `You are a master narrative designer creating the SKELETON of an interactive story.
-Your goal is to create the core structure: entry points, main story beats, and endings.
-DO NOT create branch paths yet - only the main spine of the story.
+Your goal is to create the core structure using the following NODE TYPES:
+
+NODE TYPES:
+1. ENTRY nodes: Starting scenarios where the player begins
+2. ANCHOR nodes: Key story moments that ALL paths must go through (required=true) or most paths should visit (required=false)
+3. TRANSITION nodes: AI-generated connective tissue between anchors (these will be expanded later)
+4. MERGE nodes: Where multiple divergent paths converge back into one
+5. ENDING nodes: Terminal outcomes
 
 CRITICAL DESIGN PRINCIPLES:
-1. Create a clear narrative arc from beginning to end
-2. Each story node represents a KEY MOMENT in the story
-3. Entry nodes introduce the player to the world
-4. Story nodes contain the main beats/scenes
-5. Ending nodes conclude the story
+1. Create a clear narrative arc with ANCHOR nodes as the key beats
+2. Anchor nodes are REQUIRED checkpoints - all story paths must visit them
+3. Use TRANSITION nodes between anchors for AI-generated content
+4. Use MERGE nodes when branching paths need to reconverge
+5. Entry nodes introduce the player to the world
+6. Ending nodes conclude the story
 
 CRITICAL RESPONSE FORMAT RULES:
 1. Your ENTIRE response must be valid JSON - nothing else
 2. Do NOT include any text before or after the JSON
 3. Do NOT wrap the JSON in markdown code blocks
 4. Start your response IMMEDIATELY with the opening brace {
-5. Keep descriptions CONCISE (1-2 sentences max) to avoid token limits
+5. Keep descriptions CONCISE (1-2 sentences max)
 
 Output this exact JSON structure:
 {
@@ -424,11 +438,33 @@ Output this exact JSON structure:
       "context": { "location": "Place", "mood": "tone" }
     },
     {
-      "id": "story_1",
-      "type": "story",
-      "title": "Scene Title",
-      "beat": "Key story moment",
+      "id": "anchor_1",
+      "type": "anchor",
+      "title": "Key Moment Title",
+      "beat": "The dramatic moment",
       "description": "What happens",
+      "significance": "Why this matters",
+      "required": true,
+      "orderHint": 1,
+      "characters": ["character_id"],
+      "context": { "location": "Place", "mood": "tone" }
+    },
+    {
+      "id": "transition_1",
+      "type": "transition",
+      "description": "Connective scene description",
+      "purpose": "bridge",
+      "isGenerated": true,
+      "characters": ["character_id"],
+      "context": { "location": "Place", "mood": "tone" }
+    },
+    {
+      "id": "merge_1",
+      "type": "merge",
+      "title": "Convergence Point",
+      "description": "Where paths meet",
+      "mergeStrategy": "acknowledge_differences",
+      "canonicalContinuation": "What happens next",
       "characters": ["character_id"],
       "context": { "location": "Place", "mood": "tone" }
     },
@@ -445,14 +481,14 @@ Output this exact JSON structure:
     {
       "id": "edge_1",
       "from": "entry_1",
-      "to": "story_1",
+      "to": "anchor_1",
       "choiceType": "action_type",
       "choiceHint": "What happens"
     }
   ]
 }`;
 
-    const userPrompt = `Create the SKELETON (main spine) for this story:
+    const userPrompt = `Create the SKELETON (main spine) for this story using the new node architecture:
 
 TITLE: ${input.title}
 PLOT: ${input.plot}
@@ -467,11 +503,15 @@ MOOD: ${input.worldSettings.mood}
 CHARACTERS: ${characters.map(c => `${c.name} (${c.id})`).join(', ')}
 
 REQUIREMENTS:
-- Create ${config.entryScenarios} entry node(s)
-- Create ${Math.min(config.minStoryNodes, 5)} main story nodes (key scenes only)
-- Create ${input.endingScenarios.length} ending nodes
-- Connect nodes with simple edges (ONE path from entry to each ending)
-- Keep descriptions SHORT - branches will be added later
+- Create ${config.entryScenarios} ENTRY node(s) as starting points
+- Create 3-5 ANCHOR nodes as key story moments (with orderHint 1, 2, 3...)
+- Create 2-3 TRANSITION nodes as connective tissue between anchors
+- Create 1-2 MERGE nodes where branching paths converge
+- Create ${input.endingScenarios.length} ENDING nodes
+- Connect nodes with edges showing the main narrative flow
+- All ANCHOR nodes should have required=true and appropriate orderHint values
+- TRANSITION nodes should have purpose set (bridge/escalation/relief/revelation/preparation)
+- MERGE nodes should specify how different paths are reconciled
 
 Generate the skeleton JSON:`;
 
@@ -486,8 +526,8 @@ Generate the skeleton JSON:`;
   }
 
   /**
-   * Generate branches and additional choices for a specific story node
-   * This creates the 3 choices per node and any intermediate nodes needed
+   * Generate branches and additional choices for a node
+   * Creates choices that can lead to existing nodes or new transition/merge nodes
    */
   private async generateBranchForNode(
     input: StoryCreationInput,
@@ -509,16 +549,24 @@ Generate the skeleton JSON:`;
     // Find potential target nodes (existing nodes this could connect to)
     const potentialTargets = existingNodes
       .filter(n => n.id !== sourceNode.id && n.type !== 'entry')
-      .map(n => `${n.id}: ${n.title || n.description?.slice(0, 50)}`);
+      .map(n => `${n.id} (${n.type}): ${n.title || n.description?.slice(0, 50)}`);
 
     const systemPrompt = `You are a narrative designer adding BRANCHING CHOICES to a story node.
-Create meaningful choices that lead to different outcomes.
+Create meaningful choices that lead to different outcomes using the new node architecture.
+
+NODE TYPES YOU CAN CREATE:
+1. TRANSITION nodes: Connective scenes between key moments (purpose: bridge/escalation/relief/revelation/preparation)
+2. MERGE nodes: Where divergent paths reconverge (mergeStrategy: acknowledge_differences/common_ground/forced_unity)
+3. BRANCH nodes: Conditional routing based on state (with conditions array)
+4. STORY nodes: Legacy story beats (still supported)
 
 CRITICAL DESIGN PRINCIPLES:
 1. NO PERFECT CHOICES - Every option has trade-offs
 2. Each choice should feel DISTINCT (not just different wording)
 3. Choices can lead to existing nodes OR create new intermediate nodes
 4. Include conflict, benefit, and cost for each choice
+5. Use TRANSITION nodes for new intermediate content
+6. Use MERGE nodes when paths need to converge
 
 CRITICAL RESPONSE FORMAT RULES:
 1. Your ENTIRE response must be valid JSON - nothing else
@@ -531,11 +579,21 @@ Output this exact JSON structure:
 {
   "nodes": [
     {
-      "id": "new_node_id",
-      "type": "story",
-      "title": "Scene Title",
-      "beat": "What happens",
-      "description": "Brief description",
+      "id": "transition_new_1",
+      "type": "transition",
+      "description": "What happens in this scene",
+      "purpose": "bridge",
+      "isGenerated": true,
+      "characters": ["character_id"],
+      "context": { "location": "Place", "mood": "tone" }
+    },
+    {
+      "id": "merge_new_1",
+      "type": "merge",
+      "title": "Convergence Point",
+      "description": "Where paths meet",
+      "mergeStrategy": "acknowledge_differences",
+      "canonicalContinuation": "What happens after merge",
       "characters": ["character_id"],
       "context": { "location": "Place", "mood": "tone" }
     }
@@ -554,12 +612,15 @@ Output this exact JSON structure:
   ]
 }`;
 
-    const userPrompt = `Add ${edgesNeeded} branching choice(s) to this story node:
+    const userPrompt = `Add ${edgesNeeded} branching choice(s) to this node:
 
 SOURCE NODE:
 ID: ${sourceNode.id}
+Type: ${sourceNode.type}
 Title: ${sourceNode.title || 'Untitled'}
 Description: ${sourceNode.description || sourceNode.beat || 'No description'}
+${sourceNode.type === 'anchor' ? `Significance: ${sourceNode.significance || 'Key moment'}` : ''}
+${sourceNode.type === 'transition' ? `Purpose: ${sourceNode.purpose || 'bridge'}` : ''}
 Characters present: ${sourceNode.characters?.join(', ') || 'None'}
 
 STORY CONTEXT:
@@ -579,8 +640,9 @@ ${Object.keys(worldState.player).join(', ')}
 REQUIREMENTS:
 - Create ${edgesNeeded} NEW choice(s) that are DIFFERENT from existing edges
 - Each choice needs a dilemma with clear trade-offs
-- You can create 0-2 new intermediate nodes if needed
-- Prefer connecting to existing nodes when it makes narrative sense
+- Create TRANSITION nodes for new intermediate content
+- Create MERGE nodes when paths should converge
+- Prefer connecting to existing anchor/merge/ending nodes when it makes narrative sense
 - If creating new nodes, they should eventually connect to existing nodes
 
 Generate the branches JSON:`;
@@ -980,18 +1042,20 @@ Generate the edge JSON:`;
   }
 
   /**
-   * Validate graph structure
+   * Validate graph structure for all node types
    */
   private validateGraph(graph: GeneratedGraph): string[] {
     const warnings: string[] = [];
     const nodeIds = new Set(graph.nodes.map(n => n.id));
 
-    // Check for orphan nodes
+    // Check for orphan nodes - start from entry nodes or anchor nodes if no entries
     const entryNodes = graph.nodes.filter(n => n.type === 'entry');
-    const reachableNodes = new Set(entryNodes.map(n => n.id));
+    const anchorNodes = graph.nodes.filter(n => n.type === 'anchor');
+    const startNodes = entryNodes.length > 0 ? entryNodes : anchorNodes;
+    const reachableNodes = new Set(startNodes.map(n => n.id));
 
     // BFS to find all reachable nodes
-    const queue = [...entryNodes.map(n => n.id)];
+    const queue = [...startNodes.map(n => n.id)];
     while (queue.length > 0) {
       const current = queue.shift()!;
       const outgoing = graph.edges.filter(e => e.from === current);
@@ -1008,17 +1072,20 @@ Generate the edge JSON:`;
       warnings.push(`Unreachable nodes: ${orphans.map(n => n.id).join(', ')}`);
     }
 
-    // Check for dead ends (non-ending nodes with no outgoing edges)
+    // Check for dead ends (nodes that should have outgoing edges but don't)
     const endings = new Set(graph.nodes.filter(n => n.type === 'ending').map(n => n.id));
     const branches = new Set(graph.nodes.filter(n => n.type === 'branch').map(n => n.id));
 
     for (const node of graph.nodes) {
-      if (endings.has(node.id) || branches.has(node.id)) continue;
+      // Ending nodes don't need outgoing edges
+      if (endings.has(node.id)) continue;
+      // Branch nodes use conditions instead of edges
+      if (branches.has(node.id)) continue;
 
       const outgoing = graph.edges.filter(e => e.from === node.id);
       if (outgoing.length === 0) {
-        warnings.push(`Dead end: ${node.id} has no outgoing edges`);
-      } else if (outgoing.length < 3 && node.type === 'story') {
+        warnings.push(`Dead end: ${node.id} (${node.type}) has no outgoing edges`);
+      } else if (outgoing.length < 3 && (node.type === 'story' || node.type === 'anchor')) {
         warnings.push(`${node.id} has only ${outgoing.length} choices (recommend 3)`);
       }
     }
@@ -1033,12 +1100,28 @@ Generate the edge JSON:`;
       }
     }
 
-    // Check for at least one entry and one ending
-    if (entryNodes.length === 0) {
-      warnings.push('No entry nodes defined');
+    // Check for at least one starting point and one ending
+    if (entryNodes.length === 0 && anchorNodes.length === 0) {
+      warnings.push('No entry or anchor nodes defined - story has no starting point');
     }
     if (graph.nodes.filter(n => n.type === 'ending').length === 0) {
       warnings.push('No ending nodes defined');
+    }
+
+    // Check anchor node ordering (should have orderHint set)
+    const requiredAnchors = anchorNodes.filter(n => n.required);
+    const anchorsWithoutOrder = requiredAnchors.filter(n => n.orderHint === undefined);
+    if (anchorsWithoutOrder.length > 0) {
+      warnings.push(`Required anchor nodes without orderHint: ${anchorsWithoutOrder.map(n => n.id).join(', ')}`);
+    }
+
+    // Check merge nodes have incoming edges from multiple sources
+    const mergeNodes = graph.nodes.filter(n => n.type === 'merge');
+    for (const merge of mergeNodes) {
+      const incomingEdges = graph.edges.filter(e => e.to === merge.id);
+      if (incomingEdges.length < 2) {
+        warnings.push(`Merge node ${merge.id} has only ${incomingEdges.length} incoming edge(s) (expected 2+)`);
+      }
     }
 
     return warnings;

@@ -408,18 +408,37 @@ export function createApiRoutes(): Router {
 
   /**
    * GET /api/user-stories
-   * Get all user-created stories
+   * Get all user-created stories with node type breakdown
    */
   router.get('/user-stories', (_req, res) => {
-    const stories = Array.from(userStories.values()).map(graph => ({
-      id: graph.metadata.id,
-      title: graph.metadata.title,
-      description: graph.metadata.description,
-      author: graph.metadata.author,
-      tags: graph.metadata.tags,
-      nodeCount: graph.nodes.length,
-      edgeCount: graph.edges.length,
-    }));
+    const stories = Array.from(userStories.values()).map(graph => {
+      // Calculate node type counts
+      const nodeTypes = {
+        entry: graph.nodes.filter(n => n.type === 'entry').length,
+        story: graph.nodes.filter(n => n.type === 'story').length,
+        branch: graph.nodes.filter(n => n.type === 'branch').length,
+        converge: graph.nodes.filter(n => n.type === 'converge').length,
+        ending: graph.nodes.filter(n => n.type === 'ending').length,
+        anchor: graph.nodes.filter(n => n.type === 'anchor').length,
+        transition: graph.nodes.filter(n => n.type === 'transition').length,
+        merge: graph.nodes.filter(n => n.type === 'merge').length,
+      };
+
+      // Determine if story uses new architecture
+      const usesNewArchitecture = nodeTypes.anchor > 0 || nodeTypes.transition > 0 || nodeTypes.merge > 0;
+
+      return {
+        id: graph.metadata.id,
+        title: graph.metadata.title,
+        description: graph.metadata.description,
+        author: graph.metadata.author,
+        tags: graph.metadata.tags,
+        nodeCount: graph.nodes.length,
+        edgeCount: graph.edges.length,
+        nodeTypes,
+        usesNewArchitecture,
+      };
+    });
 
     res.json({ stories });
   });
