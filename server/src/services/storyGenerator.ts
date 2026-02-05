@@ -228,6 +228,10 @@ export class StoryGeneratorService {
       edges,
     };
 
+    // Fix any dead ends before validation
+    console.log('[StoryGenerator] Fixing any dead ends in the graph...');
+    this.fixDeadEnds(graph);
+
     // Validate and add warnings
     graph.warnings = this.validateGraph(graph);
     if (graph.warnings.length > 0) {
@@ -377,6 +381,10 @@ export class StoryGeneratorService {
       edges: allEdges,
     };
 
+    // Fix any dead ends before validation
+    console.log('[StoryGenerator] Fixing any dead ends in the streaming graph...');
+    this.fixDeadEnds(graph);
+
     // Validate and add warnings
     graph.warnings = this.validateGraph(graph);
 
@@ -417,6 +425,14 @@ CRITICAL DESIGN PRINCIPLES:
 4. Use MERGE nodes when branching paths need to reconverge
 5. Entry nodes introduce the player to the world
 6. Ending nodes conclude the story
+
+CRITICAL: NO DEAD ENDS ALLOWED!
+- EVERY non-ending node MUST have at least one outgoing edge
+- Entry nodes MUST connect to anchor or transition nodes
+- Transition nodes MUST connect to anchors, merges, or endings
+- Anchor nodes MUST connect to transitions, merges, or endings
+- Merge nodes MUST connect to anchors or endings
+- Create a COMPLETE PATH from every entry to at least one ending
 
 CRITICAL RESPONSE FORMAT RULES:
 1. Your ENTIRE response must be valid JSON - nothing else
@@ -513,6 +529,14 @@ REQUIREMENTS:
 - TRANSITION nodes should have purpose set (bridge/escalation/relief/revelation/preparation)
 - MERGE nodes should specify how different paths are reconciled
 
+CRITICAL CONNECTIVITY REQUIREMENTS:
+- EVERY entry node must have an edge to the first anchor or a transition
+- EVERY anchor node must have edges leading to the next anchor, a transition, a merge, or an ending
+- EVERY transition node must have an edge to an anchor, merge, or ending
+- EVERY merge node must have an edge to the next anchor or an ending
+- The LAST anchor (highest orderHint) must connect to endings
+- NO NODE except endings should be a dead end!
+
 Generate the skeleton JSON:`;
 
     const response = await this.aiService.complete({
@@ -567,6 +591,13 @@ CRITICAL DESIGN PRINCIPLES:
 4. Include conflict, benefit, and cost for each choice
 5. Use TRANSITION nodes for new intermediate content
 6. Use MERGE nodes when paths need to converge
+
+CRITICAL: NO DEAD ENDS!
+- If you create a NEW node, it MUST have at least one outgoing edge
+- New TRANSITION nodes must connect to an existing anchor, merge, or ending
+- New MERGE nodes must connect to an existing anchor or ending
+- PREFER connecting to EXISTING nodes (anchors, merges, endings) over creating new nodes
+- Every new node you create MUST appear in BOTH the "nodes" array AND as a source in an "edges" entry
 
 CRITICAL RESPONSE FORMAT RULES:
 1. Your ENTIRE response must be valid JSON - nothing else
@@ -644,6 +675,12 @@ REQUIREMENTS:
 - Create MERGE nodes when paths should converge
 - Prefer connecting to existing anchor/merge/ending nodes when it makes narrative sense
 - If creating new nodes, they should eventually connect to existing nodes
+
+CRITICAL - NO DEAD ENDS:
+- If you create ANY new nodes, you MUST also create edges FROM those new nodes TO existing nodes
+- Example: If you create "transition_new_1", you MUST also create an edge from "transition_new_1" to an existing anchor/merge/ending
+- Every node in your "nodes" array MUST have a corresponding outgoing edge in your "edges" array
+- This is MANDATORY - stories with dead ends are broken!
 
 Generate the branches JSON:`;
 
@@ -918,6 +955,14 @@ ${config.includeConvergeNodes ? '- Include 1-2 converge nodes where different pa
 - EVERY CHOICE must have meaningful trade-offs documented in conflict/benefit/cost
 - Conflict intensity: ${Math.round(config.conflictIntensity * 100)}% (higher = more agonizing choices)
 
+CRITICAL - NO DEAD ENDS ALLOWED:
+- EVERY entry node must have outgoing edges to story nodes
+- EVERY story node must have exactly 3 outgoing edges leading to other story nodes or endings
+- EVERY converge node must have outgoing edges to story nodes or endings
+- The ONLY nodes without outgoing edges should be ENDING nodes
+- Create a COMPLETE graph where every path eventually leads to an ending
+- Before finishing, verify: for each non-ending node, there must be at least one edge with that node as "from"
+
 REMEMBER: The player should feel the weight of every decision. No easy outs.
 
 Generate the complete graph JSON:`;
@@ -1039,6 +1084,232 @@ Generate the edge JSON:`;
     });
 
     return this.parseJSON(response);
+  }
+
+  /**
+   * Fix dead ends in the graph by connecting orphaned nodes to appropriate targets
+   * This ensures all non-ending nodes have at least one outgoing edge
+   */
+  private fixDeadEnds(graph: GeneratedGraph): void {
+    const nodeIds = new Set(graph.nodes.map(n => n.id));
+    const endingNodes = graph.nodes.filter(n => n.type === 'ending');
+    const branchNodes = new Set(graph.nodes.filter(n => n.type === 'branch').map(n => n.id));
+    const anchorNodes = graph.nodes.filter(n => n.type === 'anchor').sort((a, b) => (a.orderHint ?? 0) - (b.orderHint ?? 0));
+    const mergeNodes = graph.nodes.filter(n => n.type === 'merge');
+
+    // Build outgoing edges map
+    const outgoingEdgesMap = new Map<string, GeneratedEdge[]>();
+    for (const node of graph.nodes) {
+      outgoingEdgesMap.set(node.id, []);
+    }
+    for (const edge of graph.edges) {
+      const edges = outgoingEdgesMap.get(edge.from);
+      if (edges) {
+        edges.push(edge);
+      }
+    }
+
+    // Find all dead-end nodes (non-ending, non-branch nodes without outgoing edges)
+    const deadEndNodes: GeneratedNode[] = [];
+    for (const node of graph.nodes) {
+      if (node.type === 'ending') continue;
+      if (branchNodes.has(node.id)) continue;
+
+      const outgoing = outgoingEdgesMap.get(node.id) ?? [];
+      if (outgoing.length === 0) {
+        deadEndNodes.push(node);
+      }
+    }
+
+    if (deadEndNodes.length === 0) {
+      console.log('[StoryGenerator] fixDeadEnds: No dead ends found');
+      return;
+    }
+
+    console.log(`[StoryGenerator] fixDeadEnds: Found ${deadEndNodes.length} dead-end nodes, fixing...`);
+
+    // For each dead-end node, find an appropriate target and create an edge
+    for (const deadEndNode of deadEndNodes) {
+      const target = this.findBestTargetForNode(deadEndNode, graph.nodes, graph.edges, anchorNodes, mergeNodes, endingNodes);
+
+      if (target) {
+        const edgeId = `edge_fix_${deadEndNode.id}_to_${target.id}_${Date.now().toString(36)}`;
+        const newEdge: GeneratedEdge = {
+          id: edgeId,
+          from: deadEndNode.id,
+          to: target.id,
+          choiceType: 'continue',
+          choiceHint: this.generateContinueHint(deadEndNode, target),
+          conflict: 'The path forward is uncertain',
+          benefit: 'Progress in the story',
+          cost: 'Unknown consequences',
+        };
+
+        graph.edges.push(newEdge);
+        console.log(`[StoryGenerator] fixDeadEnds: Connected "${deadEndNode.id}" to "${target.id}"`);
+      } else {
+        // Last resort: connect to the first available ending
+        if (endingNodes.length > 0) {
+          const endingTarget = endingNodes[0];
+          const edgeId = `edge_fix_${deadEndNode.id}_to_${endingTarget.id}_${Date.now().toString(36)}`;
+          const newEdge: GeneratedEdge = {
+            id: edgeId,
+            from: deadEndNode.id,
+            to: endingTarget.id,
+            choiceType: 'continue',
+            choiceHint: 'Continue to conclusion',
+            conflict: 'The story reaches its end',
+            benefit: 'Closure',
+            cost: 'The journey ends',
+          };
+
+          graph.edges.push(newEdge);
+          console.log(`[StoryGenerator] fixDeadEnds: Connected "${deadEndNode.id}" to ending "${endingTarget.id}" (fallback)`);
+        } else {
+          console.warn(`[StoryGenerator] fixDeadEnds: Could not find target for dead-end node "${deadEndNode.id}"`);
+        }
+      }
+    }
+
+    // After fixing dead ends, also ensure we don't have orphan nodes that can't be reached
+    // Check for nodes that have outgoing edges to non-existent nodes and fix them
+    const invalidEdges: GeneratedEdge[] = [];
+    for (const edge of graph.edges) {
+      if (!nodeIds.has(edge.to)) {
+        invalidEdges.push(edge);
+      }
+    }
+
+    for (const invalidEdge of invalidEdges) {
+      // Remove invalid edge or redirect to a valid node
+      const sourceNode = graph.nodes.find(n => n.id === invalidEdge.from);
+      if (sourceNode && endingNodes.length > 0) {
+        invalidEdge.to = endingNodes[0].id;
+        console.log(`[StoryGenerator] fixDeadEnds: Redirected invalid edge "${invalidEdge.id}" to ending`);
+      }
+    }
+  }
+
+  /**
+   * Find the best target node for a dead-end node based on story structure
+   */
+  private findBestTargetForNode(
+    sourceNode: GeneratedNode,
+    allNodes: GeneratedNode[],
+    allEdges: GeneratedEdge[],
+    anchorNodes: GeneratedNode[],
+    mergeNodes: GeneratedNode[],
+    endingNodes: GeneratedNode[]
+  ): GeneratedNode | null {
+    // Build a set of nodes already connected from source (to avoid cycles)
+    const sourceOutgoing = new Set(allEdges.filter(e => e.from === sourceNode.id).map(e => e.to));
+    const sourceIncoming = new Set(allEdges.filter(e => e.to === sourceNode.id).map(e => e.from));
+
+    // Strategy 1: For transition nodes, connect to the next anchor or merge
+    if (sourceNode.type === 'transition') {
+      // Find anchor nodes that come after this transition
+      for (const anchor of anchorNodes) {
+        if (!sourceOutgoing.has(anchor.id) && !sourceIncoming.has(anchor.id) && anchor.id !== sourceNode.id) {
+          return anchor;
+        }
+      }
+      // Try merge nodes
+      for (const merge of mergeNodes) {
+        if (!sourceOutgoing.has(merge.id) && !sourceIncoming.has(merge.id) && merge.id !== sourceNode.id) {
+          return merge;
+        }
+      }
+    }
+
+    // Strategy 2: For anchor nodes, connect to next anchor, merge, transition, or ending
+    if (sourceNode.type === 'anchor') {
+      const currentOrder = sourceNode.orderHint ?? 0;
+      // Find next anchor by order
+      for (const anchor of anchorNodes) {
+        const anchorOrder = anchor.orderHint ?? 0;
+        if (anchorOrder > currentOrder && !sourceOutgoing.has(anchor.id) && anchor.id !== sourceNode.id) {
+          return anchor;
+        }
+      }
+      // Try merge nodes
+      for (const merge of mergeNodes) {
+        if (!sourceOutgoing.has(merge.id) && merge.id !== sourceNode.id) {
+          return merge;
+        }
+      }
+      // Try transition nodes
+      const transitionNodes = allNodes.filter(n => n.type === 'transition');
+      for (const transition of transitionNodes) {
+        if (!sourceOutgoing.has(transition.id) && !sourceIncoming.has(transition.id) && transition.id !== sourceNode.id) {
+          return transition;
+        }
+      }
+    }
+
+    // Strategy 3: For entry nodes, connect to first anchor or transition
+    if (sourceNode.type === 'entry') {
+      if (anchorNodes.length > 0) {
+        return anchorNodes[0];
+      }
+      const transitionNodes = allNodes.filter(n => n.type === 'transition');
+      if (transitionNodes.length > 0) {
+        return transitionNodes[0];
+      }
+    }
+
+    // Strategy 4: For merge nodes, connect to next anchor or ending
+    if (sourceNode.type === 'merge') {
+      for (const anchor of anchorNodes) {
+        if (!sourceOutgoing.has(anchor.id) && !sourceIncoming.has(anchor.id) && anchor.id !== sourceNode.id) {
+          return anchor;
+        }
+      }
+      if (endingNodes.length > 0) {
+        return endingNodes[0];
+      }
+    }
+
+    // Strategy 5: For story nodes (legacy), connect to any unconnected node or ending
+    if (sourceNode.type === 'story') {
+      // Try anchors first
+      for (const anchor of anchorNodes) {
+        if (!sourceOutgoing.has(anchor.id) && anchor.id !== sourceNode.id) {
+          return anchor;
+        }
+      }
+      // Try merge nodes
+      for (const merge of mergeNodes) {
+        if (!sourceOutgoing.has(merge.id) && merge.id !== sourceNode.id) {
+          return merge;
+        }
+      }
+    }
+
+    // Fallback: Return first ending
+    if (endingNodes.length > 0) {
+      return endingNodes[0];
+    }
+
+    return null;
+  }
+
+  /**
+   * Generate a contextual hint for continue edges
+   */
+  private generateContinueHint(source: GeneratedNode, target: GeneratedNode): string {
+    if (target.type === 'ending') {
+      return 'See how the story ends';
+    }
+    if (target.type === 'anchor') {
+      return `Move toward ${target.title || 'the next key moment'}`;
+    }
+    if (target.type === 'merge') {
+      return 'Continue forward';
+    }
+    if (target.type === 'transition') {
+      return 'See what happens next';
+    }
+    return 'Continue the story';
   }
 
   /**
