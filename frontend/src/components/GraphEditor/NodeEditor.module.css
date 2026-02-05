@@ -358,21 +358,183 @@
 
 /* Responsive */
 @media (max-width: 600px) {
+  .overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
   .modal {
     max-height: 100vh;
+    height: 100vh;
     border-radius: 0;
+    max-width: 100%;
+  }
+
+  .header {
+    padding: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: linear-gradient(180deg, #1a1a2e 0%, rgba(26, 26, 46, 0.95) 100%);
+  }
+
+  .header h2 {
+    font-size: 1.1rem;
+  }
+
+  .closeButton {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .content {
+    padding: 1rem;
+    padding-bottom: 100px; /* Space for footer */
+  }
+
+  .formGroup {
+    margin-bottom: 1.25rem;
   }
 
   .formRow {
     grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .label {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .input,
+  .textarea,
+  .select {
+    padding: 0.85rem 1rem;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+    border-radius: 10px;
+    min-height: 48px;
+  }
+
+  .textarea {
+    min-height: 100px;
+  }
+
+  .section {
+    margin-top: 1.75rem;
+  }
+
+  .section h3 {
+    font-size: 1.05rem;
+    margin-bottom: 1rem;
+  }
+
+  .characterGrid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .characterCheckbox {
+    padding: 0.75rem 1rem;
+    min-height: 52px;
+    border-radius: 10px;
+  }
+
+  .characterName {
+    font-size: 0.95rem;
+  }
+
+  .effectItem {
+    padding: 0.75rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
   .routeInfo {
     flex-direction: column;
     text-align: center;
+    padding: 1rem;
+    gap: 0.75rem;
   }
 
   .routeArrow {
     transform: rotate(90deg);
+  }
+
+  .footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    background: linear-gradient(180deg, rgba(13, 13, 26, 0.95) 0%, #0d0d1a 100%);
+    border-top: 1px solid rgba(124, 58, 237, 0.3);
+    z-index: 10;
+  }
+
+  .actions {
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  .cancelButton,
+  .saveButton,
+  .deleteButton {
+    padding: 0.85rem 1.25rem;
+    min-height: 48px;
+    font-size: 0.95rem;
+  }
+
+  .deleteButton {
+    padding: 0.85rem 1rem;
+  }
+
+  .deleteConfirm {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .deleteConfirm span {
+    width: 100%;
+    text-align: center;
+  }
+
+  .confirmYes,
+  .confirmNo {
+    flex: 1;
+    min-height: 44px;
+    padding: 0.75rem;
+  }
+}
+
+/* Small mobile screens */
+@media (max-width: 400px) {
+  .header {
+    padding: 0.75rem;
+  }
+
+  .header h2 {
+    font-size: 1rem;
+  }
+
+  .content {
+    padding: 0.75rem;
+    padding-bottom: 90px;
+  }
+
+  .footer {
+    padding: 0.75rem;
+  }
+
+  .actions {
+    gap: 0.5rem;
+  }
+
+  .cancelButton,
+  .saveButton {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
   }
 }
