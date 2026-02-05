@@ -84,10 +84,10 @@ export interface GraphGenerationConfig {
 }
 
 export const DEFAULT_GRAPH_CONFIG: GraphGenerationConfig = {
-  minStoryNodes: 8,
-  maxStoryNodes: 15,
+  minStoryNodes: 25,
+  maxStoryNodes: 40,
   entryScenarios: 2,
-  branchingFactor: 3,
+  branchingFactor: 2,
   conflictIntensity: 0.8, // High conflict by default
   includeBranchNodes: true,
   includeConvergeNodes: true,

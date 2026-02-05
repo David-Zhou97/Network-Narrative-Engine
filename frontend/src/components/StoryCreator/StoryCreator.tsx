@@ -50,10 +50,10 @@ interface EndingDimensionInput {
 }
 
 const DEFAULT_CONFIG: GraphGenerationConfig = {
-  minStoryNodes: 8,
-  maxStoryNodes: 15,
+  minStoryNodes: 25,
+  maxStoryNodes: 40,
   entryScenarios: 2,
-  branchingFactor: 3,
+  branchingFactor: 2,
   conflictIntensity: 0.8,
   includeBranchNodes: true,
   includeConvergeNodes: true,
@@ -955,32 +955,11 @@ export function StoryCreator({ onBack, onGenerated }: StoryCreatorProps): React.
 
             <div className={styles.configGrid}>
               <div className={styles.configCard}>
-                <h3>Story Size</h3>
+                <h3>Story Structure</h3>
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>
-                    Minimum Story Nodes: {config.minStoryNodes}
-                  </label>
-                  <input
-                    type="range"
-                    className={styles.slider}
-                    min={5}
-                    max={20}
-                    value={config.minStoryNodes}
-                    onChange={e => setConfig({ ...config, minStoryNodes: parseInt(e.target.value) })}
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>
-                    Maximum Story Nodes: {config.maxStoryNodes}
-                  </label>
-                  <input
-                    type="range"
-                    className={styles.slider}
-                    min={config.minStoryNodes}
-                    max={30}
-                    value={config.maxStoryNodes}
-                    onChange={e => setConfig({ ...config, maxStoryNodes: parseInt(e.target.value) })}
-                  />
+                  <span className={styles.hint}>
+                    Stories are automatically generated with 25-40 nodes following a 3-act structure with plot twists, betrayals, and dramatic moments.
+                  </span>
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.label}>
