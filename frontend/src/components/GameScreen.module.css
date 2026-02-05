@@ -5,6 +5,20 @@
   height: 100dvh;
   background: var(--color-bg-primary);
   overflow: hidden;
+  position: relative;
+}
+
+/* Subtle ambient gradient background */
+.container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: radial-gradient(ellipse at 50% 0%, rgba(124, 58, 237, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .scrollContainer {
@@ -12,11 +26,23 @@
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+  z-index: 1;
+
+  /* Hide scrollbar for cleaner look */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollContainer::-webkit-scrollbar {
+  display: none;
 }
 
 .content {
   padding: var(--spacing-md);
-  padding-bottom: var(--spacing-xl);
+  padding-top: var(--spacing-sm);
+  padding-bottom: calc(var(--spacing-xl) + 20px);
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
@@ -35,17 +61,37 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-md);
+  gap: var(--spacing-lg);
   color: var(--color-text-secondary);
+  position: relative;
+  z-index: 1;
+}
+
+.loadingState p {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--color-border);
+  width: 44px;
+  height: 44px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
   border-top-color: var(--color-accent-primary);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  position: relative;
+}
+
+.spinner::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 2px solid transparent;
+  border-top-color: var(--color-accent-secondary);
+  border-radius: 50%;
+  animation: spin 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite reverse;
 }
 
 @keyframes spin {
@@ -56,16 +102,49 @@
 
 .errorMessage {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--spacing-sm);
   padding: var(--spacing-md);
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: var(--radius-md);
-  color: #ef4444;
-  font-size: var(--font-size-sm);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 12px;
+  color: rgba(239, 68, 68, 0.9);
+  font-size: 14px;
+  line-height: 1.5;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .errorMessage svg {
   flex-shrink: 0;
+  margin-top: 2px;
+  opacity: 0.8;
+}
+
+/* Mobile optimizations */
+@media (max-width: 480px) {
+  .content {
+    padding: var(--spacing-sm);
+    padding-top: var(--spacing-xs);
+    padding-bottom: calc(var(--spacing-lg) + 16px);
+    gap: var(--spacing-md);
+  }
+
+  .dialogueSection {
+    gap: var(--spacing-sm);
+  }
+
+  .errorMessage {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 13px;
+    border-radius: 10px;
+  }
+}
+
+/* Landscape phone optimization */
+@media (max-height: 500px) and (orientation: landscape) {
+  .content {
+    padding: var(--spacing-xs) var(--spacing-md);
+    gap: var(--spacing-sm);
+  }
 }
