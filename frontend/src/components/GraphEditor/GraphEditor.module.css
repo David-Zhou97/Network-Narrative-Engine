@@ -456,13 +456,138 @@
   margin-bottom: 0.5rem;
 }
 
+/* Mobile Container */
+.containerMobile {
+  touch-action: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile Node Styles */
+.nodeMobile {
+  width: 160px;
+  min-height: 70px;
+}
+
+.nodeMobile .nodeType {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.6rem;
+}
+
+.nodeMobile .nodeContent {
+  padding: 0.4rem 0.5rem;
+}
+
+.nodeMobile .nodeTitle {
+  font-size: 0.75rem;
+}
+
+.nodeMobile .nodeDescription {
+  font-size: 0.65rem;
+}
+
+.nodeMobile .nodeCharacters {
+  padding: 0.2rem 0.5rem 0.4rem;
+}
+
+.nodeMobile .characterBadge {
+  font-size: 0.55rem;
+  padding: 0.1rem 0.3rem;
+}
+
+/* Mobile Details Panel */
+.detailsPanelMobile {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: auto;
+  max-height: 60px;
+  border-left: none;
+  border-top: 1px solid rgba(124, 58, 237, 0.4);
+  border-radius: 20px 20px 0 0;
+  z-index: 100;
+  transition: max-height 0.3s ease-out;
+  padding: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(30, 30, 50, 0.98) 0%, rgba(13, 13, 26, 0.98) 100%);
+  backdrop-filter: blur(10px);
+}
+
+.detailsPanelMobile.detailsPanelExpanded {
+  max-height: 70vh;
+}
+
+.detailsPanelHandle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+  min-height: 60px;
+  box-sizing: border-box;
+}
+
+.handleBar {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 4px;
+  background: rgba(167, 139, 250, 0.4);
+  border-radius: 2px;
+}
+
+.handleText {
+  flex: 1;
+  color: #d1d5db;
+  font-size: 0.9rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 0.5rem;
+}
+
+.detailsContent {
+  overflow-y: auto;
+  max-height: calc(70vh - 60px);
+  padding: 0 1rem 1rem;
+}
+
+/* Floating Edit Button */
+.floatingEditButton {
+  position: fixed;
+  bottom: 80px;
+  right: 1rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.5);
+  cursor: pointer;
+  z-index: 99;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.floatingEditButton:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 10px rgba(124, 58, 237, 0.4);
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .content {
     grid-template-columns: 1fr;
   }
 
-  .detailsPanel {
+  .detailsPanel:not(.detailsPanelMobile) {
     position: fixed;
     bottom: 0;
     left: 0;
@@ -475,5 +600,160 @@
 
   .listContainer {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Small mobile screens */
+@media (max-width: 768px) {
+  .header {
+    padding: 0.75rem 1rem;
+    gap: 0.5rem;
+  }
+
+  .backButton {
+    padding: 0.5rem;
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .title {
+    font-size: 1rem;
+  }
+
+  .viewToggle {
+    padding: 0.15rem;
+  }
+
+  .viewButton {
+    padding: 0.5rem 0.75rem;
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .publishButton {
+    padding: 0.5rem;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .statsPanel {
+    padding: 0.75rem 1rem;
+    gap: 0.75rem;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .statsPanel::-webkit-scrollbar {
+    display: none;
+  }
+
+  .stat {
+    flex-shrink: 0;
+    min-width: 50px;
+  }
+
+  .statValue {
+    font-size: 1.2rem;
+  }
+
+  .statLabel {
+    font-size: 0.65rem;
+  }
+
+  .zoomControls {
+    bottom: 70px;
+    left: 0.75rem;
+    padding: 0.4rem;
+    gap: 0.4rem;
+  }
+
+  .zoomControls button {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+
+  .zoomControls span {
+    min-width: 40px;
+    font-size: 0.75rem;
+  }
+
+  /* List view on mobile */
+  .listSection {
+    margin-bottom: 0.5rem;
+  }
+
+  .listSection h3 {
+    padding: 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .nodeList,
+  .edgeList {
+    max-height: 40vh;
+  }
+
+  .listItem {
+    padding: 0.75rem;
+    min-height: 60px;
+  }
+
+  .listItemTitle {
+    font-size: 0.85rem;
+  }
+
+  .listItemId {
+    font-size: 0.7rem;
+  }
+
+  /* Ensure graph container uses full space */
+  .graphContainer {
+    touch-action: none;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .header {
+    padding: 0.5rem;
+  }
+
+  .headerCenter {
+    gap: 0.25rem;
+  }
+
+  .title {
+    font-size: 0.9rem;
+  }
+
+  .statsPanel {
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .stat {
+    min-width: 45px;
+  }
+
+  .statValue {
+    font-size: 1rem;
+  }
+
+  .statLabel {
+    font-size: 0.6rem;
+  }
+
+  .floatingEditButton {
+    width: 50px;
+    height: 50px;
+    bottom: 75px;
+    right: 0.75rem;
   }
 }

@@ -28,6 +28,17 @@ interface DragState {
   offsetY: number;
 }
 
+interface TouchState {
+  isDragging: boolean;
+  isPinching: boolean;
+  startDistance: number;
+  startZoom: number;
+  lastTouchX: number;
+  lastTouchY: number;
+  touchStartTime: number;
+  touchStartNode: string | null;
+}
+
 type ViewMode = 'graph' | 'list';
 
 const NODE_WIDTH = 200;
@@ -47,7 +58,30 @@ export function GraphEditor({ graph, onUpdateGraph, onBack, onPublish }: GraphEd
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [isMobile, setIsMobile] = useState(false);
+  const [detailsPanelExpanded, setDetailsPanelExpanded] = useState(false);
+  const [touchState, setTouchState] = useState<TouchState>({
+    isDragging: false,
+    isPinching: false,
+    startDistance: 0,
+    startZoom: 1,
+    lastTouchX: 0,
+    lastTouchY: 0,
+    touchStartTime: 0,
+    touchStartNode: null,
+  });
   const containerRef = useRef<HTMLDivElement>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Calculate automatic layout on mount or graph change
   useEffect(() => {
@@ -190,6 +224,176 @@ export function GraphEditor({ graph, onUpdateGraph, onBack, onPublish }: GraphEd
     setZoom(prev => Math.min(Math.max(prev * delta, 0.3), 2));
   }, []);
 
+  // Touch helpers
+  const getTouchDistance = (touches: React.TouchList): number => {
+    if (touches.length < 2) return 0;
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const getTouchCenter = (touches: React.TouchList): { x: number; y: number } => {
+    if (touches.length === 1) {
+      return { x: touches[0].clientX, y: touches[0].clientY };
+    }
+    return {
+      x: (touches[0].clientX + touches[1].clientX) / 2,
+      y: (touches[0].clientY + touches[1].clientY) / 2,
+    };
+  };
+
+  // Touch handlers for canvas
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+
+    const touches = e.touches;
+    const center = getTouchCenter(touches);
+
+    if (touches.length === 2) {
+      // Pinch-to-zoom start
+      setTouchState(prev => ({
+        ...prev,
+        isPinching: true,
+        startDistance: getTouchDistance(touches),
+        startZoom: zoom,
+        lastTouchX: center.x,
+        lastTouchY: center.y,
+      }));
+    } else if (touches.length === 1) {
+      // Single touch - could be pan or node drag
+      setTouchState(prev => ({
+        ...prev,
+        isDragging: true,
+        lastTouchX: center.x,
+        lastTouchY: center.y,
+        touchStartTime: Date.now(),
+        touchStartNode: null,
+      }));
+      setPanStart({
+        x: center.x - pan.x,
+        y: center.y - pan.y,
+      });
+    }
+  }, [zoom, pan]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    const touches = e.touches;
+    const center = getTouchCenter(touches);
+
+    if (touches.length === 2 && touchState.isPinching) {
+      // Pinch-to-zoom
+      const distance = getTouchDistance(touches);
+      const scale = distance / touchState.startDistance;
+      const newZoom = Math.min(Math.max(touchState.startZoom * scale, 0.3), 2);
+      setZoom(newZoom);
+
+      // Also pan with pinch center
+      const dx = center.x - touchState.lastTouchX;
+      const dy = center.y - touchState.lastTouchY;
+      setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      setTouchState(prev => ({
+        ...prev,
+        lastTouchX: center.x,
+        lastTouchY: center.y,
+      }));
+    } else if (touches.length === 1 && touchState.isDragging) {
+      if (dragState.nodeId) {
+        // Dragging a node
+        const newX = center.x / zoom - dragState.offsetX + pan.x / zoom;
+        const newY = center.y / zoom - dragState.offsetY + pan.y / zoom;
+        setPositions(prev => ({
+          ...prev,
+          [dragState.nodeId!]: { x: newX, y: newY },
+        }));
+      } else {
+        // Panning canvas
+        setPan({
+          x: center.x - panStart.x,
+          y: center.y - panStart.y,
+        });
+      }
+    }
+  }, [touchState, dragState, zoom, pan, panStart]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+    setTouchState(prev => ({
+      ...prev,
+      isDragging: false,
+      isPinching: false,
+      touchStartNode: null,
+    }));
+    setDragState({ nodeId: null, offsetX: 0, offsetY: 0 });
+  }, []);
+
+  // Touch handlers for nodes
+  const handleNodeTouchStart = useCallback((e: React.TouchEvent, nodeId: string) => {
+    e.stopPropagation();
+    const touch = e.touches[0];
+    const nodePos = positions[nodeId] || { x: 0, y: 0 };
+
+    setSelectedNodeId(nodeId);
+    setSelectedEdgeId(null);
+
+    // Expand details panel on mobile when selecting a node
+    if (isMobile) {
+      setDetailsPanelExpanded(true);
+    }
+
+    setTouchState(prev => ({
+      ...prev,
+      isDragging: true,
+      lastTouchX: touch.clientX,
+      lastTouchY: touch.clientY,
+      touchStartTime: Date.now(),
+      touchStartNode: nodeId,
+    }));
+
+    // Set up node dragging
+    setDragState({
+      nodeId,
+      offsetX: touch.clientX / zoom - nodePos.x + pan.x / zoom,
+      offsetY: touch.clientY / zoom - nodePos.y + pan.y / zoom,
+    });
+
+    // Long press to edit (300ms)
+    longPressTimerRef.current = setTimeout(() => {
+      const node = graph.nodes.find(n => n.id === nodeId);
+      if (node) {
+        setEditingNode(node);
+      }
+    }, 500);
+  }, [positions, zoom, pan, isMobile, graph.nodes]);
+
+  const handleNodeTouchEnd = useCallback((e: React.TouchEvent, node: GeneratedNode) => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+
+    const touchDuration = Date.now() - touchState.touchStartTime;
+
+    // Quick tap (under 200ms and didn't move much) - just select
+    if (touchDuration < 200 && touchState.touchStartNode === node.id) {
+      setSelectedNodeId(node.id);
+      setSelectedEdgeId(null);
+      if (isMobile) {
+        setDetailsPanelExpanded(true);
+      }
+    }
+
+    setTouchState(prev => ({
+      ...prev,
+      isDragging: false,
+      touchStartNode: null,
+    }));
+    setDragState({ nodeId: null, offsetX: 0, offsetY: 0 });
+  }, [touchState, isMobile]);
+
   // Node/Edge editing
   const handleNodeDoubleClick = useCallback((node: GeneratedNode) => {
     setEditingNode(node);
@@ -276,33 +480,35 @@ export function GraphEditor({ graph, onUpdateGraph, onBack, onPublish }: GraphEd
   }), [graph]);
 
   return (
-    <div className={styles.container}>
+    <div className={`${styles.container} ${isMobile ? styles.containerMobile : ''}`}>
       <header className={styles.header}>
         <button className={styles.backButton} onClick={onBack}>
           <BackIcon />
-          <span>Back to Editor</span>
+          {!isMobile && <span>Back to Editor</span>}
         </button>
         <div className={styles.headerCenter}>
-          <h1 className={styles.title}>{graph.metadata.title}</h1>
+          <h1 className={styles.title}>{isMobile ? (graph.metadata.title.length > 20 ? graph.metadata.title.slice(0, 20) + '...' : graph.metadata.title) : graph.metadata.title}</h1>
           <div className={styles.viewToggle}>
             <button
               className={`${styles.viewButton} ${viewMode === 'graph' ? styles.active : ''}`}
               onClick={() => setViewMode('graph')}
+              title="Graph View"
             >
               <GraphIcon />
-              Graph
+              {!isMobile && 'Graph'}
             </button>
             <button
               className={`${styles.viewButton} ${viewMode === 'list' ? styles.active : ''}`}
               onClick={() => setViewMode('list')}
+              title="List View"
             >
               <ListIcon />
-              List
+              {!isMobile && 'List'}
             </button>
           </div>
         </div>
         <button className={styles.publishButton} onClick={onPublish}>
-          Publish Story
+          {isMobile ? <PublishIcon /> : 'Publish Story'}
         </button>
       </header>
 
@@ -349,6 +555,9 @@ export function GraphEditor({ graph, onUpdateGraph, onBack, onPublish }: GraphEd
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
             onWheel={handleWheel}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
             <svg
               className={styles.graphSvg}
@@ -426,7 +635,7 @@ export function GraphEditor({ graph, onUpdateGraph, onBack, onPublish }: GraphEd
                 return (
                   <div
                     key={node.id}
-                    className={`${styles.node} ${isSelected ? styles.nodeSelected : ''}`}
+                    className={`${styles.node} ${isSelected ? styles.nodeSelected : ''} ${isMobile ? styles.nodeMobile : ''}`}
                     style={{
                       left: pos.x,
                       top: pos.y,
@@ -435,6 +644,9 @@ export function GraphEditor({ graph, onUpdateGraph, onBack, onPublish }: GraphEd
                     }}
                     onMouseDown={e => handleNodeMouseDown(e, node.id)}
                     onDoubleClick={() => handleNodeDoubleClick(node)}
+                    onTouchStart={e => handleNodeTouchStart(e, node.id)}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={e => handleNodeTouchEnd(e, node)}
                   >
                     <div
                       className={styles.nodeType}
@@ -529,105 +741,129 @@ export function GraphEditor({ graph, onUpdateGraph, onBack, onPublish }: GraphEd
         )}
 
         {/* Details Panel */}
-        <div className={styles.detailsPanel}>
-          <h3>Details</h3>
-          {selectedNode ? (
-            <div className={styles.details}>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>ID</span>
-                <span className={styles.detailValue}>{selectedNode.id}</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Type</span>
-                <span className={styles.detailValue}>{selectedNode.type}</span>
-              </div>
-              {selectedNode.title && (
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Title</span>
-                  <span className={styles.detailValue}>{selectedNode.title}</span>
-                </div>
-              )}
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Description</span>
-                <span className={styles.detailValue}>{selectedNode.description}</span>
-              </div>
-              {selectedNode.context && (
-                <>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Location</span>
-                    <span className={styles.detailValue}>{selectedNode.context.location}</span>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Mood</span>
-                    <span className={styles.detailValue}>{selectedNode.context.mood}</span>
-                  </div>
-                </>
-              )}
-              <button
-                className={styles.editButton}
-                onClick={() => setEditingNode(selectedNode)}
-              >
-                Edit Node
-              </button>
+        <div className={`${styles.detailsPanel} ${isMobile ? styles.detailsPanelMobile : ''} ${detailsPanelExpanded ? styles.detailsPanelExpanded : ''}`}>
+          {isMobile && (
+            <div
+              className={styles.detailsPanelHandle}
+              onClick={() => setDetailsPanelExpanded(!detailsPanelExpanded)}
+            >
+              <div className={styles.handleBar} />
+              <span className={styles.handleText}>
+                {selectedNode ? selectedNode.title || selectedNode.id : selectedEdge ? `${selectedEdge.from} → ${selectedEdge.to}` : 'Details'}
+              </span>
+              <ChevronIcon direction={detailsPanelExpanded ? 'down' : 'up'} />
             </div>
-          ) : selectedEdge ? (
-            <div className={styles.details}>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>From</span>
-                <span className={styles.detailValue}>{selectedEdge.from}</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>To</span>
-                <span className={styles.detailValue}>{selectedEdge.to}</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Choice Type</span>
-                <span className={styles.detailValue}>{selectedEdge.choiceType}</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Choice</span>
-                <span className={styles.detailValue}>{selectedEdge.choiceHint}</span>
-              </div>
-              {selectedEdge.conflict && (
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Conflict</span>
-                  <span className={styles.detailValue}>{selectedEdge.conflict}</span>
-                </div>
-              )}
-              {selectedEdge.benefit && (
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Benefit</span>
-                  <span className={styles.detailValue}>{selectedEdge.benefit}</span>
-                </div>
-              )}
-              {selectedEdge.cost && (
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Cost</span>
-                  <span className={styles.detailValue}>{selectedEdge.cost}</span>
-                </div>
-              )}
-              <button
-                className={styles.editButton}
-                onClick={() => setEditingEdge(selectedEdge)}
-              >
-                Edit Edge
-              </button>
-            </div>
-          ) : (
-            <p className={styles.noSelection}>
-              Click a node or edge to view details. Double-click to edit.
-            </p>
           )}
+          {!isMobile && <h3>Details</h3>}
+          <div className={styles.detailsContent}>
+            {selectedNode ? (
+              <div className={styles.details}>
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>ID</span>
+                  <span className={styles.detailValue}>{selectedNode.id}</span>
+                </div>
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>Type</span>
+                  <span className={styles.detailValue}>{selectedNode.type}</span>
+                </div>
+                {selectedNode.title && (
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>Title</span>
+                    <span className={styles.detailValue}>{selectedNode.title}</span>
+                  </div>
+                )}
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>Description</span>
+                  <span className={styles.detailValue}>{selectedNode.description}</span>
+                </div>
+                {selectedNode.context && (
+                  <>
+                    <div className={styles.detailRow}>
+                      <span className={styles.detailLabel}>Location</span>
+                      <span className={styles.detailValue}>{selectedNode.context.location}</span>
+                    </div>
+                    <div className={styles.detailRow}>
+                      <span className={styles.detailLabel}>Mood</span>
+                      <span className={styles.detailValue}>{selectedNode.context.mood}</span>
+                    </div>
+                  </>
+                )}
+                <button
+                  className={styles.editButton}
+                  onClick={() => setEditingNode(selectedNode)}
+                >
+                  Edit Node
+                </button>
+              </div>
+            ) : selectedEdge ? (
+              <div className={styles.details}>
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>From</span>
+                  <span className={styles.detailValue}>{selectedEdge.from}</span>
+                </div>
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>To</span>
+                  <span className={styles.detailValue}>{selectedEdge.to}</span>
+                </div>
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>Choice Type</span>
+                  <span className={styles.detailValue}>{selectedEdge.choiceType}</span>
+                </div>
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>Choice</span>
+                  <span className={styles.detailValue}>{selectedEdge.choiceHint}</span>
+                </div>
+                {selectedEdge.conflict && (
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>Conflict</span>
+                    <span className={styles.detailValue}>{selectedEdge.conflict}</span>
+                  </div>
+                )}
+                {selectedEdge.benefit && (
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>Benefit</span>
+                    <span className={styles.detailValue}>{selectedEdge.benefit}</span>
+                  </div>
+                )}
+                {selectedEdge.cost && (
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>Cost</span>
+                    <span className={styles.detailValue}>{selectedEdge.cost}</span>
+                  </div>
+                )}
+                <button
+                  className={styles.editButton}
+                  onClick={() => setEditingEdge(selectedEdge)}
+                >
+                  Edit Edge
+                </button>
+              </div>
+            ) : (
+              <p className={styles.noSelection}>
+                {isMobile ? 'Tap a node to view details. Long-press to edit.' : 'Click a node or edge to view details. Double-click to edit.'}
+              </p>
+            )}
 
-          {graph.warnings && graph.warnings.length > 0 && (
-            <div className={styles.warnings}>
-              <h4>Warnings</h4>
-              {graph.warnings.map((warning, i) => (
-                <div key={i} className={styles.warning}>{warning}</div>
-              ))}
-            </div>
-          )}
+            {graph.warnings && graph.warnings.length > 0 && (
+              <div className={styles.warnings}>
+                <h4>Warnings</h4>
+                {graph.warnings.map((warning, i) => (
+                  <div key={i} className={styles.warning}>{warning}</div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Mobile Floating Action Button */}
+        {isMobile && selectedNode && viewMode === 'graph' && (
+          <button
+            className={styles.floatingEditButton}
+            onClick={() => setEditingNode(selectedNode)}
+          >
+            <EditIcon />
+          </button>
+        )}
       </div>
 
       {/* Node Editor Modal */}
@@ -683,6 +919,39 @@ function ListIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+    </svg>
+  );
+}
+
+function PublishIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 19V5M5 12l7-7 7 7" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ direction }: { direction: 'up' | 'down' }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      style={{ transform: direction === 'down' ? 'rotate(180deg)' : undefined }}
+    >
+      <path d="M18 15l-6-6-6 6" />
+    </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
     </svg>
   );
 }
