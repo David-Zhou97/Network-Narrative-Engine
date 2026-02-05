@@ -70,10 +70,15 @@ export function GraphEditor({ graph, onUpdateGraph, onBack, onPublish }: GraphEd
       incomingEdges.get(edge.to)!.push(edge.from);
     }
 
-    // Assign levels using BFS from entry nodes
+    // Assign levels using BFS from entry nodes (or anchor nodes if no entries)
     const levels = new Map<string, number>();
     const entryNodes = g.nodes.filter(n => n.type === 'entry');
-    const queue: Array<{ id: string; level: number }> = entryNodes.map(n => ({ id: n.id, level: 0 }));
+    const anchorNodes = g.nodes.filter(n => n.type === 'anchor');
+    // Start from entry nodes, or fall back to anchor nodes sorted by orderHint
+    const startNodes = entryNodes.length > 0
+      ? entryNodes
+      : anchorNodes.sort((a, b) => (a.orderHint ?? 0) - (b.orderHint ?? 0));
+    const queue: Array<{ id: string; level: number }> = startNodes.map(n => ({ id: n.id, level: 0 }));
 
     while (queue.length > 0) {
       const { id, level } = queue.shift()!;
@@ -229,11 +234,14 @@ export function GraphEditor({ graph, onUpdateGraph, onBack, onPublish }: GraphEd
   // Get color for node type
   const getNodeColor = (type: string): string => {
     switch (type) {
-      case 'entry': return '#10b981';
-      case 'story': return '#6366f1';
-      case 'branch': return '#f59e0b';
-      case 'converge': return '#8b5cf6';
-      case 'ending': return '#ef4444';
+      case 'entry': return '#10b981';      // Green - Starting point
+      case 'story': return '#6366f1';      // Indigo - Main narrative
+      case 'branch': return '#f59e0b';     // Amber - Branching logic
+      case 'converge': return '#8b5cf6';   // Purple - Legacy merge
+      case 'ending': return '#ef4444';     // Red - Terminal
+      case 'anchor': return '#0ea5e9';     // Cyan - Key moments
+      case 'transition': return '#64748b'; // Slate - Connective tissue
+      case 'merge': return '#d946ef';      // Fuchsia - Path convergence
       default: return '#6b7280';
     }
   };
@@ -241,10 +249,11 @@ export function GraphEditor({ graph, onUpdateGraph, onBack, onPublish }: GraphEd
   // Get ending type color
   const getEndingColor = (endingType?: string): string => {
     switch (endingType) {
-      case 'good': return '#10b981';
-      case 'neutral': return '#6b7280';
-      case 'bad': return '#ef4444';
-      case 'secret': return '#a78bfa';
+      case 'good': return '#10b981';       // Green
+      case 'neutral': return '#6b7280';    // Gray
+      case 'bad': return '#ef4444';        // Red
+      case 'secret': return '#a78bfa';     // Purple
+      case 'bittersweet': return '#f97316'; // Orange
       default: return '#ef4444';
     }
   };
@@ -260,6 +269,9 @@ export function GraphEditor({ graph, onUpdateGraph, onBack, onPublish }: GraphEd
     stories: graph.nodes.filter(n => n.type === 'story').length,
     branches: graph.nodes.filter(n => n.type === 'branch').length,
     endings: graph.nodes.filter(n => n.type === 'ending').length,
+    anchors: graph.nodes.filter(n => n.type === 'anchor').length,
+    transitions: graph.nodes.filter(n => n.type === 'transition').length,
+    merges: graph.nodes.filter(n => n.type === 'merge').length,
     edges: graph.edges.length,
   }), [graph]);
 
@@ -306,11 +318,23 @@ export function GraphEditor({ graph, onUpdateGraph, onBack, onPublish }: GraphEd
             <span className={styles.statLabel}>Edges</span>
           </div>
           <div className={styles.stat}>
-            <span className={styles.statValue}>{stats.entries}</span>
+            <span className={styles.statValue} style={{ color: '#10b981' }}>{stats.entries}</span>
             <span className={styles.statLabel}>Entries</span>
           </div>
           <div className={styles.stat}>
-            <span className={styles.statValue}>{stats.endings}</span>
+            <span className={styles.statValue} style={{ color: '#0ea5e9' }}>{stats.anchors}</span>
+            <span className={styles.statLabel}>Anchors</span>
+          </div>
+          <div className={styles.stat}>
+            <span className={styles.statValue} style={{ color: '#64748b' }}>{stats.transitions}</span>
+            <span className={styles.statLabel}>Transitions</span>
+          </div>
+          <div className={styles.stat}>
+            <span className={styles.statValue} style={{ color: '#d946ef' }}>{stats.merges}</span>
+            <span className={styles.statLabel}>Merges</span>
+          </div>
+          <div className={styles.stat}>
+            <span className={styles.statValue} style={{ color: '#ef4444' }}>{stats.endings}</span>
             <span className={styles.statLabel}>Endings</span>
           </div>
         </div>

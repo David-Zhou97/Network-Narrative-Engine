@@ -149,17 +149,31 @@ export interface GeneratedWorldState {
   }>;
 }
 
+/**
+ * Node types in the narrative graph:
+ * - entry: Starting scenarios (where player begins)
+ * - story: Main narrative beats (legacy, still supported)
+ * - branch: Conditional routing based on state
+ * - converge: Legacy path merger (still supported)
+ * - ending: Terminal outcomes
+ * - anchor: Key story moments that all paths must go through
+ * - transition: AI-generated connective tissue between nodes
+ * - merge: Path convergence points where multiple paths become one
+ */
+export type GeneratedNodeType = 'entry' | 'story' | 'branch' | 'converge' | 'ending' | 'anchor' | 'transition' | 'merge';
+
 export interface GeneratedNode {
   id: string;
-  type: 'entry' | 'story' | 'branch' | 'converge' | 'ending';
+  type: GeneratedNodeType;
   description: string;
-  /** For entry nodes */
+  /** For entry and anchor nodes */
   title?: string;
+  /** For entry nodes */
   preview?: string;
-  /** For story nodes */
+  /** For story and anchor nodes */
   beat?: string;
   /** For ending nodes */
-  endingType?: 'good' | 'neutral' | 'bad' | 'secret';
+  endingType?: 'good' | 'neutral' | 'bad' | 'secret' | 'bittersweet';
   epilogue?: string;
   /** Characters present */
   characters?: string[];
@@ -188,6 +202,42 @@ export interface GeneratedNode {
   }>;
   /** Position for visualization (added by frontend) */
   position?: { x: number; y: number };
+
+  // ============================================================================
+  // Anchor Node Properties
+  // ============================================================================
+  /** Why this moment matters to the story (for anchor nodes) */
+  significance?: string;
+  /** Whether this anchor is required or optional */
+  required?: boolean;
+  /** Order hint for when this should occur (lower = earlier) */
+  orderHint?: number;
+
+  // ============================================================================
+  // Transition Node Properties
+  // ============================================================================
+  /** The purpose of this transition */
+  purpose?: 'bridge' | 'escalation' | 'relief' | 'revelation' | 'preparation';
+  /** What value conflict is being explored */
+  activeConflict?: string;
+  /** Whether this was AI-generated */
+  isGenerated?: boolean;
+  /** Context for regeneration */
+  generationContext?: {
+    fromAnchorId?: string;
+    toAnchorId?: string;
+    playerChoicesInfluence?: string[];
+  };
+
+  // ============================================================================
+  // Merge Node Properties
+  // ============================================================================
+  /** How different paths are reconciled (for merge nodes) */
+  mergeStrategy?: 'acknowledge_differences' | 'common_ground' | 'forced_unity';
+  /** Text variations based on incoming path */
+  pathVariations?: Record<string, string>;
+  /** The canonical continuation after merge */
+  canonicalContinuation?: string;
 }
 
 export interface GeneratedEdge {
@@ -301,19 +351,51 @@ export function graphToNarrativeDefinition(graph: GeneratedGraph): unknown {
         onEnter: n.onEnter,
       };
 
-      if (n.type === 'entry') {
-        return { ...base, title: n.title, preview: n.preview };
+      switch (n.type) {
+        case 'entry':
+          return { ...base, title: n.title, preview: n.preview };
+
+        case 'story':
+          return { ...base, beat: n.beat };
+
+        case 'ending':
+          return { ...base, title: n.title, endingType: n.endingType, epilogue: n.epilogue };
+
+        case 'branch':
+          return { ...base, conditions: n.conditions };
+
+        case 'anchor':
+          return {
+            ...base,
+            title: n.title,
+            beat: n.beat,
+            significance: n.significance,
+            required: n.required ?? true,
+            orderHint: n.orderHint,
+          };
+
+        case 'transition':
+          return {
+            ...base,
+            purpose: n.purpose ?? 'bridge',
+            activeConflict: n.activeConflict,
+            isGenerated: n.isGenerated ?? true,
+            generationContext: n.generationContext,
+          };
+
+        case 'merge':
+          return {
+            ...base,
+            title: n.title,
+            mergeStrategy: n.mergeStrategy ?? 'acknowledge_differences',
+            pathVariations: n.pathVariations,
+            canonicalContinuation: n.canonicalContinuation,
+          };
+
+        case 'converge':
+        default:
+          return base;
       }
-      if (n.type === 'story') {
-        return { ...base, beat: n.beat };
-      }
-      if (n.type === 'ending') {
-        return { ...base, title: n.title, endingType: n.endingType, epilogue: n.epilogue };
-      }
-      if (n.type === 'branch') {
-        return { ...base, conditions: n.conditions };
-      }
-      return base;
     }),
     edges: graph.edges.map(e => ({
       id: e.id,

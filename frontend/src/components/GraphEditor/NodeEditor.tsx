@@ -1,10 +1,20 @@
 /**
  * NodeEditor - Modal for editing story nodes
+ *
+ * Supports all node types:
+ * - Entry: Starting scenarios
+ * - Story: Main narrative beats (legacy)
+ * - Branch: Conditional routing
+ * - Converge: Legacy path merger
+ * - Ending: Terminal outcomes
+ * - Anchor: Key story moments all paths go through
+ * - Transition: AI-generated connective tissue
+ * - Merge: Path convergence points
  */
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import type { GeneratedNode, GeneratedCharacter } from '../../../../src/types/storyCreation';
+import type { GeneratedNode, GeneratedCharacter, GeneratedNodeType } from '../../../../src/types/storyCreation';
 import styles from './NodeEditor.module.css';
 
 interface NodeEditorProps {
@@ -85,18 +95,21 @@ export function NodeEditor({ node, characters, onSave, onDelete, onClose }: Node
               <select
                 className={styles.select}
                 value={editedNode.type}
-                onChange={e => updateField('type', e.target.value as GeneratedNode['type'])}
+                onChange={e => updateField('type', e.target.value as GeneratedNodeType)}
               >
                 <option value="entry">Entry</option>
                 <option value="story">Story</option>
                 <option value="branch">Branch</option>
                 <option value="converge">Converge</option>
                 <option value="ending">Ending</option>
+                <option value="anchor">Anchor</option>
+                <option value="transition">Transition</option>
+                <option value="merge">Merge</option>
               </select>
             </div>
           </div>
 
-          {(editedNode.type === 'entry' || editedNode.type === 'ending') && (
+          {(editedNode.type === 'entry' || editedNode.type === 'ending' || editedNode.type === 'anchor' || editedNode.type === 'merge') && (
             <div className={styles.formGroup}>
               <label className={styles.label}>Title</label>
               <input
@@ -122,7 +135,7 @@ export function NodeEditor({ node, characters, onSave, onDelete, onClose }: Node
             </div>
           )}
 
-          {editedNode.type === 'story' && (
+          {(editedNode.type === 'story' || editedNode.type === 'anchor') && (
             <div className={styles.formGroup}>
               <label className={styles.label}>Beat</label>
               <input
@@ -148,6 +161,7 @@ export function NodeEditor({ node, characters, onSave, onDelete, onClose }: Node
                   <option value="neutral">Neutral</option>
                   <option value="bad">Bad</option>
                   <option value="secret">Secret</option>
+                  <option value="bittersweet">Bittersweet</option>
                 </select>
               </div>
 
@@ -158,6 +172,122 @@ export function NodeEditor({ node, characters, onSave, onDelete, onClose }: Node
                   value={editedNode.epilogue || ''}
                   onChange={e => updateField('epilogue', e.target.value)}
                   placeholder="What happens after..."
+                  rows={3}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Anchor Node Fields */}
+          {editedNode.type === 'anchor' && (
+            <>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Significance</label>
+                <textarea
+                  className={styles.textarea}
+                  value={editedNode.significance || ''}
+                  onChange={e => updateField('significance', e.target.value)}
+                  placeholder="Why this moment matters to the story..."
+                  rows={2}
+                />
+              </div>
+
+              <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Required</label>
+                  <select
+                    className={styles.select}
+                    value={editedNode.required ? 'true' : 'false'}
+                    onChange={e => updateField('required', e.target.value === 'true')}
+                  >
+                    <option value="true">Yes - All paths must visit</option>
+                    <option value="false">No - Optional anchor</option>
+                  </select>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Order Hint</label>
+                  <input
+                    type="number"
+                    className={styles.input}
+                    value={editedNode.orderHint ?? 0}
+                    onChange={e => updateField('orderHint', parseInt(e.target.value) || 0)}
+                    placeholder="Lower = earlier"
+                    min={0}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Transition Node Fields */}
+          {editedNode.type === 'transition' && (
+            <>
+              <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Purpose</label>
+                  <select
+                    className={styles.select}
+                    value={editedNode.purpose || 'bridge'}
+                    onChange={e => updateField('purpose', e.target.value as GeneratedNode['purpose'])}
+                  >
+                    <option value="bridge">Bridge - Connect scenes</option>
+                    <option value="escalation">Escalation - Raise tension</option>
+                    <option value="relief">Relief - Lower tension</option>
+                    <option value="revelation">Revelation - Reveal information</option>
+                    <option value="preparation">Preparation - Set up future events</option>
+                  </select>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>AI Generated</label>
+                  <select
+                    className={styles.select}
+                    value={editedNode.isGenerated ? 'true' : 'false'}
+                    onChange={e => updateField('isGenerated', e.target.value === 'true')}
+                  >
+                    <option value="true">Yes</option>
+                    <option value="false">No - Manually created</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Active Conflict</label>
+                <input
+                  type="text"
+                  className={styles.input}
+                  value={editedNode.activeConflict || ''}
+                  onChange={e => updateField('activeConflict', e.target.value)}
+                  placeholder="Value conflict being explored (e.g., 'loyalty vs truth')"
+                />
+              </div>
+            </>
+          )}
+
+          {/* Merge Node Fields */}
+          {editedNode.type === 'merge' && (
+            <>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Merge Strategy</label>
+                <select
+                  className={styles.select}
+                  value={editedNode.mergeStrategy || 'acknowledge_differences'}
+                  onChange={e => updateField('mergeStrategy', e.target.value as GeneratedNode['mergeStrategy'])}
+                >
+                  <option value="acknowledge_differences">Acknowledge Differences - Reference past choices</option>
+                  <option value="common_ground">Common Ground - Focus on shared outcomes</option>
+                  <option value="forced_unity">Forced Unity - Converge regardless of path</option>
+                </select>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Canonical Continuation</label>
+                <textarea
+                  className={styles.textarea}
+                  value={editedNode.canonicalContinuation || ''}
+                  onChange={e => updateField('canonicalContinuation', e.target.value)}
+                  placeholder="The story continuation after paths merge..."
                   rows={3}
                 />
               </div>
