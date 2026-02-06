@@ -670,7 +670,7 @@ Output this exact JSON structure:
       "id": "edge_id",
       "from": "source_node_id",
       "to": "target_node_id",
-      "choiceType": "investigate|confront|help|betray|etc",
+      "choiceType": "agree|refuse|question|deflect|confront|comfort|investigate|leave|custom",
       "choiceHint": "What the player does",
       "conflict": "The dilemma",
       "benefit": "What you gain",
@@ -1163,19 +1163,36 @@ Generate the edge JSON:`;
     const anchorNodes = graph.nodes.filter(n => n.type === 'anchor').sort((a, b) => (a.orderHint ?? 0) - (b.orderHint ?? 0));
     const mergeNodes = graph.nodes.filter(n => n.type === 'merge');
 
-    // Build outgoing edges map
-    const outgoingEdgesMap = new Map<string, GeneratedEdge[]>();
-    for (const node of graph.nodes) {
-      outgoingEdgesMap.set(node.id, []);
-    }
-    for (const edge of graph.edges) {
-      const edges = outgoingEdgesMap.get(edge.from);
-      if (edges) {
-        edges.push(edge);
+    // Step 1: Remove edges referencing non-existent nodes (both 'from' and 'to')
+    const validEdgesBefore = graph.edges.length;
+    graph.edges = graph.edges.filter(edge => {
+      if (!nodeIds.has(edge.from)) {
+        console.log(`[StoryGenerator] fixDeadEnds: Removed edge "${edge.id}" with non-existent source "${edge.from}"`);
+        return false;
       }
+      if (!nodeIds.has(edge.to)) {
+        console.log(`[StoryGenerator] fixDeadEnds: Removed edge "${edge.id}" with non-existent target "${edge.to}"`);
+        return false;
+      }
+      return true;
+    });
+    if (graph.edges.length < validEdgesBefore) {
+      console.log(`[StoryGenerator] fixDeadEnds: Removed ${validEdgesBefore - graph.edges.length} invalid edges`);
     }
 
-    // Find all dead-end nodes (non-ending, non-branch nodes without outgoing edges)
+    // Step 2: Build edge maps
+    const outgoingEdgesMap = new Map<string, GeneratedEdge[]>();
+    const incomingEdgesMap = new Map<string, GeneratedEdge[]>();
+    for (const node of graph.nodes) {
+      outgoingEdgesMap.set(node.id, []);
+      incomingEdgesMap.set(node.id, []);
+    }
+    for (const edge of graph.edges) {
+      outgoingEdgesMap.get(edge.from)?.push(edge);
+      incomingEdgesMap.get(edge.to)?.push(edge);
+    }
+
+    // Step 3: Find and fix dead-end nodes (non-ending, non-branch nodes without outgoing edges)
     const deadEndNodes: GeneratedNode[] = [];
     for (const node of graph.nodes) {
       if (node.type === 'ending') continue;
@@ -1187,77 +1204,349 @@ Generate the edge JSON:`;
       }
     }
 
-    if (deadEndNodes.length === 0) {
-      console.log('[StoryGenerator] fixDeadEnds: No dead ends found');
-      return;
+    if (deadEndNodes.length > 0) {
+      console.log(`[StoryGenerator] fixDeadEnds: Found ${deadEndNodes.length} dead-end nodes, fixing...`);
     }
-
-    console.log(`[StoryGenerator] fixDeadEnds: Found ${deadEndNodes.length} dead-end nodes, fixing...`);
 
     // For each dead-end node, find an appropriate target and create an edge
     for (const deadEndNode of deadEndNodes) {
       const target = this.findBestTargetForNode(deadEndNode, graph.nodes, graph.edges, anchorNodes, mergeNodes, endingNodes);
 
       if (target) {
-        const edgeId = `edge_fix_${deadEndNode.id}_to_${target.id}_${Date.now().toString(36)}`;
-        const newEdge: GeneratedEdge = {
-          id: edgeId,
-          from: deadEndNode.id,
-          to: target.id,
-          choiceType: 'continue',
-          choiceHint: this.generateContinueHint(deadEndNode, target),
-          conflict: 'The path forward is uncertain',
-          benefit: 'Progress in the story',
-          cost: 'Unknown consequences',
-        };
-
+        const newEdge = this.createFixEdge(deadEndNode, target);
         graph.edges.push(newEdge);
+        outgoingEdgesMap.get(deadEndNode.id)?.push(newEdge);
+        incomingEdgesMap.get(target.id)?.push(newEdge);
         console.log(`[StoryGenerator] fixDeadEnds: Connected "${deadEndNode.id}" to "${target.id}"`);
-      } else {
+      } else if (endingNodes.length > 0) {
         // Last resort: connect to the first available ending
-        if (endingNodes.length > 0) {
-          const endingTarget = endingNodes[0];
-          const edgeId = `edge_fix_${deadEndNode.id}_to_${endingTarget.id}_${Date.now().toString(36)}`;
-          const newEdge: GeneratedEdge = {
-            id: edgeId,
-            from: deadEndNode.id,
-            to: endingTarget.id,
-            choiceType: 'continue',
-            choiceHint: 'Continue to conclusion',
-            conflict: 'The story reaches its end',
-            benefit: 'Closure',
-            cost: 'The journey ends',
-          };
+        const endingTarget = endingNodes[0];
+        const newEdge = this.createFixEdge(deadEndNode, endingTarget);
+        graph.edges.push(newEdge);
+        outgoingEdgesMap.get(deadEndNode.id)?.push(newEdge);
+        incomingEdgesMap.get(endingTarget.id)?.push(newEdge);
+        console.log(`[StoryGenerator] fixDeadEnds: Connected "${deadEndNode.id}" to ending "${endingTarget.id}" (fallback)`);
+      } else {
+        console.warn(`[StoryGenerator] fixDeadEnds: Could not find target for dead-end node "${deadEndNode.id}"`);
+      }
+    }
 
-          graph.edges.push(newEdge);
-          console.log(`[StoryGenerator] fixDeadEnds: Connected "${deadEndNode.id}" to ending "${endingTarget.id}" (fallback)`);
-        } else {
-          console.warn(`[StoryGenerator] fixDeadEnds: Could not find target for dead-end node "${deadEndNode.id}"`);
+    // Step 4: Fix merge nodes that don't have enough incoming edges (need >= 2)
+    this.fixMergeNodes(graph, outgoingEdgesMap, incomingEdgesMap);
+
+    // Step 5: Ensure all endings are reachable from entry nodes
+    this.ensureEndingsReachable(graph, outgoingEdgesMap, incomingEdgesMap);
+
+    // Step 6: Ensure no nodes are trapped in cycles with no exit to an ending
+    this.fixCycleTraps(graph, outgoingEdgesMap, incomingEdgesMap);
+  }
+
+  /**
+   * Fix merge nodes that lack the required multiple incoming edges.
+   * Merge nodes should have >= 2 incoming edges; if they only have 1,
+   * either connect nearby nodes to them or downgrade to transition nodes.
+   */
+  private fixMergeNodes(
+    graph: GeneratedGraph,
+    outgoingEdgesMap: Map<string, GeneratedEdge[]>,
+    incomingEdgesMap: Map<string, GeneratedEdge[]>
+  ): void {
+    const mergeNodes = graph.nodes.filter(n => n.type === 'merge');
+
+    for (const mergeNode of mergeNodes) {
+      const incoming = incomingEdgesMap.get(mergeNode.id) ?? [];
+
+      if (incoming.length >= 2) continue;
+
+      console.log(`[StoryGenerator] fixMergeNodes: Merge node "${mergeNode.id}" has ${incoming.length} incoming edge(s), needs >= 2`);
+
+      // Find candidate nodes that could connect to this merge node
+      const incomingSourceIds = new Set(incoming.map(e => e.from));
+      const outgoingTargetIds = new Set(
+        (outgoingEdgesMap.get(mergeNode.id) ?? []).map(e => e.to)
+      );
+
+      // Look for nodes that are "nearby" in the graph - nodes that share
+      // targets with the merge node's incoming sources, or nodes at a similar
+      // story position (e.g., same anchor orderHint range)
+      const candidates: GeneratedNode[] = [];
+      for (const node of graph.nodes) {
+        if (node.id === mergeNode.id) continue;
+        if (node.type === 'ending' || node.type === 'entry') continue;
+        if (incomingSourceIds.has(node.id)) continue;
+        // Don't connect nodes that the merge already points to (would create cycle)
+        if (outgoingTargetIds.has(node.id)) continue;
+
+        // Check that the node has outgoing edges (and could spare one more)
+        const nodeOutgoing = outgoingEdgesMap.get(node.id) ?? [];
+        if (nodeOutgoing.length >= 1) {
+          // Good candidate - this node already has paths forward
+          // and adding an edge to the merge gives the merge more incoming
+          candidates.push(node);
         }
       }
-    }
 
-    // After fixing dead ends, also ensure we don't have orphan nodes that can't be reached
-    // Check for nodes that have outgoing edges to non-existent nodes and fix them
-    const invalidEdges: GeneratedEdge[] = [];
-    for (const edge of graph.edges) {
-      if (!nodeIds.has(edge.to)) {
-        invalidEdges.push(edge);
+      // Prefer anchor/transition/story nodes that are near the merge's
+      // incoming nodes in the story flow
+      const incomingOrders = incoming
+        .map(e => graph.nodes.find(n => n.id === e.from))
+        .filter((n): n is GeneratedNode => n !== undefined)
+        .map(n => n.orderHint ?? 0);
+      const avgOrder = incomingOrders.length > 0
+        ? incomingOrders.reduce((a, b) => a + b, 0) / incomingOrders.length
+        : 0;
+
+      // Sort candidates by proximity to the merge's position in the story
+      candidates.sort((a, b) => {
+        const aDist = Math.abs((a.orderHint ?? 0) - avgOrder);
+        const bDist = Math.abs((b.orderHint ?? 0) - avgOrder);
+        return aDist - bDist;
+      });
+
+      const edgesNeeded = 2 - incoming.length;
+      let edgesAdded = 0;
+
+      for (const candidate of candidates) {
+        if (edgesAdded >= edgesNeeded) break;
+
+        // Verify we won't create a direct 2-node cycle
+        const candidateIncoming = incomingEdgesMap.get(candidate.id) ?? [];
+        const wouldCreateCycle = candidateIncoming.some(e => e.from === mergeNode.id);
+        if (wouldCreateCycle) continue;
+
+        const newEdge = this.createFixEdge(candidate, mergeNode);
+        graph.edges.push(newEdge);
+        outgoingEdgesMap.get(candidate.id)?.push(newEdge);
+        incomingEdgesMap.get(mergeNode.id)?.push(newEdge);
+        edgesAdded++;
+        console.log(`[StoryGenerator] fixMergeNodes: Added edge from "${candidate.id}" to merge "${mergeNode.id}"`);
       }
-    }
 
-    for (const invalidEdge of invalidEdges) {
-      // Remove invalid edge or redirect to a valid node
-      const sourceNode = graph.nodes.find(n => n.id === invalidEdge.from);
-      if (sourceNode && endingNodes.length > 0) {
-        invalidEdge.to = endingNodes[0].id;
-        console.log(`[StoryGenerator] fixDeadEnds: Redirected invalid edge "${invalidEdge.id}" to ending`);
+      // If we still couldn't get 2 incoming edges, downgrade merge to transition
+      if ((incomingEdgesMap.get(mergeNode.id) ?? []).length < 2) {
+        console.log(`[StoryGenerator] fixMergeNodes: Downgrading merge "${mergeNode.id}" to transition (couldn't find enough incoming sources)`);
+        (mergeNode as any).type = 'transition';
+        (mergeNode as any).purpose = 'bridge';
+        (mergeNode as any).isGenerated = true;
       }
     }
   }
 
   /**
-   * Find the best target node for a dead-end node based on story structure
+   * Ensure all ending nodes are reachable from at least one entry node.
+   * Uses reverse BFS from endings to check reachability, then connects
+   * unreachable endings to late-stage nodes.
+   */
+  private ensureEndingsReachable(
+    graph: GeneratedGraph,
+    outgoingEdgesMap: Map<string, GeneratedEdge[]>,
+    incomingEdgesMap: Map<string, GeneratedEdge[]>
+  ): void {
+    const entryNodes = graph.nodes.filter(n => n.type === 'entry');
+    const endingNodes = graph.nodes.filter(n => n.type === 'ending');
+
+    if (entryNodes.length === 0 || endingNodes.length === 0) return;
+
+    // BFS forward from all entry nodes to find all reachable nodes
+    const reachableFromEntry = new Set<string>();
+    const queue = entryNodes.map(n => n.id);
+    for (const id of queue) {
+      reachableFromEntry.add(id);
+    }
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const outgoing = outgoingEdgesMap.get(current) ?? [];
+      for (const edge of outgoing) {
+        if (!reachableFromEntry.has(edge.to)) {
+          reachableFromEntry.add(edge.to);
+          queue.push(edge.to);
+        }
+      }
+    }
+
+    // Check which endings are unreachable
+    const unreachableEndings = endingNodes.filter(e => !reachableFromEntry.has(e.id));
+
+    if (unreachableEndings.length === 0) {
+      console.log('[StoryGenerator] ensureEndingsReachable: All endings are reachable');
+      return;
+    }
+
+    console.log(`[StoryGenerator] ensureEndingsReachable: ${unreachableEndings.length} ending(s) are unreachable, fixing...`);
+
+    // Find late-stage nodes (reachable from entry, with high orderHint or near endings)
+    const anchorNodes = graph.nodes
+      .filter(n => n.type === 'anchor' && reachableFromEntry.has(n.id))
+      .sort((a, b) => (b.orderHint ?? 0) - (a.orderHint ?? 0)); // Highest orderHint first
+
+    const reachableNonEnding = graph.nodes.filter(
+      n => n.type !== 'ending' && n.type !== 'entry' && reachableFromEntry.has(n.id)
+    );
+
+    for (const unreachableEnding of unreachableEndings) {
+      // Check if the ending already has incoming edges (just from unreachable nodes)
+      const existingIncoming = incomingEdgesMap.get(unreachableEnding.id) ?? [];
+      const existingIncomingSources = new Set(existingIncoming.map(e => e.from));
+
+      // Strategy 1: Connect a late-stage anchor to this ending
+      let connected = false;
+      for (const anchor of anchorNodes) {
+        if (existingIncomingSources.has(anchor.id)) continue;
+
+        const newEdge = this.createFixEdge(anchor, unreachableEnding);
+        graph.edges.push(newEdge);
+        outgoingEdgesMap.get(anchor.id)?.push(newEdge);
+        incomingEdgesMap.get(unreachableEnding.id)?.push(newEdge);
+        connected = true;
+        console.log(`[StoryGenerator] ensureEndingsReachable: Connected anchor "${anchor.id}" to ending "${unreachableEnding.id}"`);
+        break;
+      }
+
+      if (connected) continue;
+
+      // Strategy 2: Connect any reachable non-ending node
+      for (const node of reachableNonEnding) {
+        if (existingIncomingSources.has(node.id)) continue;
+
+        const newEdge = this.createFixEdge(node, unreachableEnding);
+        graph.edges.push(newEdge);
+        outgoingEdgesMap.get(node.id)?.push(newEdge);
+        incomingEdgesMap.get(unreachableEnding.id)?.push(newEdge);
+        console.log(`[StoryGenerator] ensureEndingsReachable: Connected "${node.id}" to ending "${unreachableEnding.id}" (fallback)`);
+        break;
+      }
+    }
+  }
+
+  /**
+   * Detect and fix nodes trapped in cycles with no exit path to an ending.
+   * A node is "trapped" if following all its outgoing edges only leads back
+   * to already-visited nodes (infinite loop).
+   */
+  private fixCycleTraps(
+    graph: GeneratedGraph,
+    outgoingEdgesMap: Map<string, GeneratedEdge[]>,
+    incomingEdgesMap: Map<string, GeneratedEdge[]>
+  ): void {
+    const endingIds = new Set(graph.nodes.filter(n => n.type === 'ending').map(n => n.id));
+    const endingNodes = graph.nodes.filter(n => n.type === 'ending');
+
+    if (endingNodes.length === 0) return;
+
+    // BFS backward from endings to find all nodes that can reach an ending
+    const canReachEnding = new Set<string>(endingIds);
+    const queue = [...endingIds];
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const incoming = incomingEdgesMap.get(current) ?? [];
+      for (const edge of incoming) {
+        if (!canReachEnding.has(edge.from)) {
+          canReachEnding.add(edge.from);
+          queue.push(edge.from);
+        }
+      }
+    }
+
+    // Find nodes that exist but can't reach any ending
+    const trappedNodes = graph.nodes.filter(
+      n => n.type !== 'ending' && !canReachEnding.has(n.id)
+    );
+
+    if (trappedNodes.length === 0) {
+      console.log('[StoryGenerator] fixCycleTraps: No cycle traps found');
+      return;
+    }
+
+    console.log(`[StoryGenerator] fixCycleTraps: ${trappedNodes.length} node(s) cannot reach any ending, fixing...`);
+
+    // For each trapped node, connect it to a node that CAN reach an ending
+    const anchorNodes = graph.nodes
+      .filter(n => n.type === 'anchor' && canReachEnding.has(n.id))
+      .sort((a, b) => (b.orderHint ?? 0) - (a.orderHint ?? 0));
+
+    const exitNodes = graph.nodes.filter(
+      n => n.type !== 'ending' && canReachEnding.has(n.id)
+    );
+
+    for (const trapped of trappedNodes) {
+      const existingOutgoing = new Set(
+        (outgoingEdgesMap.get(trapped.id) ?? []).map(e => e.to)
+      );
+
+      // Strategy 1: Connect to a reachable anchor
+      let connected = false;
+      for (const anchor of anchorNodes) {
+        if (existingOutgoing.has(anchor.id)) continue;
+        // Avoid creating 2-node cycle
+        const anchorOutgoing = (outgoingEdgesMap.get(anchor.id) ?? []).map(e => e.to);
+        if (anchorOutgoing.includes(trapped.id)) continue;
+
+        const newEdge = this.createFixEdge(trapped, anchor);
+        graph.edges.push(newEdge);
+        outgoingEdgesMap.get(trapped.id)?.push(newEdge);
+        incomingEdgesMap.get(anchor.id)?.push(newEdge);
+        connected = true;
+        console.log(`[StoryGenerator] fixCycleTraps: Connected trapped "${trapped.id}" to anchor "${anchor.id}"`);
+        break;
+      }
+
+      if (connected) continue;
+
+      // Strategy 2: Connect to any node that can reach an ending
+      for (const exit of exitNodes) {
+        if (existingOutgoing.has(exit.id)) continue;
+        if (exit.id === trapped.id) continue;
+        // Avoid creating 2-node cycle
+        const exitOutgoing = (outgoingEdgesMap.get(exit.id) ?? []).map(e => e.to);
+        if (exitOutgoing.includes(trapped.id)) continue;
+
+        const newEdge = this.createFixEdge(trapped, exit);
+        graph.edges.push(newEdge);
+        outgoingEdgesMap.get(trapped.id)?.push(newEdge);
+        incomingEdgesMap.get(exit.id)?.push(newEdge);
+        connected = true;
+        console.log(`[StoryGenerator] fixCycleTraps: Connected trapped "${trapped.id}" to "${exit.id}"`);
+        break;
+      }
+
+      if (connected) continue;
+
+      // Strategy 3: Last resort - connect directly to an ending
+      if (endingNodes.length > 0) {
+        const ending = endingNodes[0];
+        if (!existingOutgoing.has(ending.id)) {
+          const newEdge = this.createFixEdge(trapped, ending);
+          graph.edges.push(newEdge);
+          outgoingEdgesMap.get(trapped.id)?.push(newEdge);
+          incomingEdgesMap.get(ending.id)?.push(newEdge);
+          console.log(`[StoryGenerator] fixCycleTraps: Connected trapped "${trapped.id}" directly to ending "${ending.id}"`);
+        }
+      }
+    }
+  }
+
+  /**
+   * Create a fix edge between two nodes with valid choiceType and contextual hints
+   */
+  private createFixEdge(source: GeneratedNode, target: GeneratedNode): GeneratedEdge {
+    const edgeId = `edge_fix_${source.id}_to_${target.id}_${Date.now().toString(36)}`;
+    return {
+      id: edgeId,
+      from: source.id,
+      to: target.id,
+      choiceType: 'custom',
+      choiceHint: this.generateContinueHint(source, target),
+      conflict: 'The path forward is uncertain',
+      benefit: 'Progress in the story',
+      cost: 'Unknown consequences',
+    };
+  }
+
+  /**
+   * Find the best target node for a dead-end node based on story structure.
+   * Avoids creating 2-node cycles by checking both incoming and outgoing connections.
    */
   private findBestTargetForNode(
     sourceNode: GeneratedNode,
@@ -1267,46 +1556,46 @@ Generate the edge JSON:`;
     mergeNodes: GeneratedNode[],
     endingNodes: GeneratedNode[]
   ): GeneratedNode | null {
-    // Build a set of nodes already connected from source (to avoid cycles)
+    // Build sets of nodes already connected from/to source
     const sourceOutgoing = new Set(allEdges.filter(e => e.from === sourceNode.id).map(e => e.to));
     const sourceIncoming = new Set(allEdges.filter(e => e.to === sourceNode.id).map(e => e.from));
 
+    // Helper: check if connecting source → target would create a 2-node cycle
+    const wouldCreateCycle = (targetId: string): boolean => {
+      return sourceIncoming.has(targetId) && !sourceOutgoing.has(targetId);
+    };
+
     // Strategy 1: For transition nodes, connect to the next anchor or merge
     if (sourceNode.type === 'transition') {
-      // Find anchor nodes that come after this transition
       for (const anchor of anchorNodes) {
-        if (!sourceOutgoing.has(anchor.id) && !sourceIncoming.has(anchor.id) && anchor.id !== sourceNode.id) {
+        if (!sourceOutgoing.has(anchor.id) && !wouldCreateCycle(anchor.id) && anchor.id !== sourceNode.id) {
           return anchor;
         }
       }
-      // Try merge nodes
       for (const merge of mergeNodes) {
-        if (!sourceOutgoing.has(merge.id) && !sourceIncoming.has(merge.id) && merge.id !== sourceNode.id) {
+        if (!sourceOutgoing.has(merge.id) && !wouldCreateCycle(merge.id) && merge.id !== sourceNode.id) {
           return merge;
         }
       }
     }
 
-    // Strategy 2: For anchor nodes, connect to next anchor, merge, transition, or ending
+    // Strategy 2: For anchor nodes, connect to next anchor by orderHint, avoiding cycles
     if (sourceNode.type === 'anchor') {
       const currentOrder = sourceNode.orderHint ?? 0;
-      // Find next anchor by order
       for (const anchor of anchorNodes) {
         const anchorOrder = anchor.orderHint ?? 0;
-        if (anchorOrder > currentOrder && !sourceOutgoing.has(anchor.id) && anchor.id !== sourceNode.id) {
+        if (anchorOrder > currentOrder && !sourceOutgoing.has(anchor.id) && !wouldCreateCycle(anchor.id) && anchor.id !== sourceNode.id) {
           return anchor;
         }
       }
-      // Try merge nodes
       for (const merge of mergeNodes) {
-        if (!sourceOutgoing.has(merge.id) && merge.id !== sourceNode.id) {
+        if (!sourceOutgoing.has(merge.id) && !wouldCreateCycle(merge.id) && merge.id !== sourceNode.id) {
           return merge;
         }
       }
-      // Try transition nodes
       const transitionNodes = allNodes.filter(n => n.type === 'transition');
       for (const transition of transitionNodes) {
-        if (!sourceOutgoing.has(transition.id) && !sourceIncoming.has(transition.id) && transition.id !== sourceNode.id) {
+        if (!sourceOutgoing.has(transition.id) && !wouldCreateCycle(transition.id) && transition.id !== sourceNode.id) {
           return transition;
         }
       }
@@ -1323,10 +1612,10 @@ Generate the edge JSON:`;
       }
     }
 
-    // Strategy 4: For merge nodes, connect to next anchor or ending
+    // Strategy 4: For merge nodes, connect to next anchor or ending (avoiding cycles)
     if (sourceNode.type === 'merge') {
       for (const anchor of anchorNodes) {
-        if (!sourceOutgoing.has(anchor.id) && !sourceIncoming.has(anchor.id) && anchor.id !== sourceNode.id) {
+        if (!sourceOutgoing.has(anchor.id) && !wouldCreateCycle(anchor.id) && anchor.id !== sourceNode.id) {
           return anchor;
         }
       }
@@ -1335,23 +1624,21 @@ Generate the edge JSON:`;
       }
     }
 
-    // Strategy 5: For story nodes (legacy), connect to any unconnected node or ending
-    if (sourceNode.type === 'story') {
-      // Try anchors first
+    // Strategy 5: For story/converge nodes, connect to any forward node
+    if (sourceNode.type === 'story' || sourceNode.type === 'converge') {
       for (const anchor of anchorNodes) {
-        if (!sourceOutgoing.has(anchor.id) && anchor.id !== sourceNode.id) {
+        if (!sourceOutgoing.has(anchor.id) && !wouldCreateCycle(anchor.id) && anchor.id !== sourceNode.id) {
           return anchor;
         }
       }
-      // Try merge nodes
       for (const merge of mergeNodes) {
-        if (!sourceOutgoing.has(merge.id) && merge.id !== sourceNode.id) {
+        if (!sourceOutgoing.has(merge.id) && !wouldCreateCycle(merge.id) && merge.id !== sourceNode.id) {
           return merge;
         }
       }
     }
 
-    // Fallback: Return first ending
+    // Fallback: Return first ending (endings can't create cycles since they have no outgoing)
     if (endingNodes.length > 0) {
       return endingNodes[0];
     }
@@ -1388,16 +1675,17 @@ Generate the edge JSON:`;
     // Check for orphan nodes - start from entry nodes or anchor nodes if no entries
     const entryNodes = graph.nodes.filter(n => n.type === 'entry');
     const anchorNodes = graph.nodes.filter(n => n.type === 'anchor');
+    const endingNodes = graph.nodes.filter(n => n.type === 'ending');
     const startNodes = entryNodes.length > 0 ? entryNodes : anchorNodes;
     const reachableNodes = new Set(startNodes.map(n => n.id));
 
-    // BFS to find all reachable nodes
+    // BFS forward to find all reachable nodes
     const queue = [...startNodes.map(n => n.id)];
     while (queue.length > 0) {
       const current = queue.shift()!;
       const outgoing = graph.edges.filter(e => e.from === current);
       for (const edge of outgoing) {
-        if (!reachableNodes.has(edge.to)) {
+        if (!reachableNodes.has(edge.to) && nodeIds.has(edge.to)) {
           reachableNodes.add(edge.to);
           queue.push(edge.to);
         }
@@ -1410,13 +1698,11 @@ Generate the edge JSON:`;
     }
 
     // Check for dead ends (nodes that should have outgoing edges but don't)
-    const endings = new Set(graph.nodes.filter(n => n.type === 'ending').map(n => n.id));
+    const endings = new Set(endingNodes.map(n => n.id));
     const branches = new Set(graph.nodes.filter(n => n.type === 'branch').map(n => n.id));
 
     for (const node of graph.nodes) {
-      // Ending nodes don't need outgoing edges
       if (endings.has(node.id)) continue;
-      // Branch nodes use conditions instead of edges
       if (branches.has(node.id)) continue;
 
       const outgoing = graph.edges.filter(e => e.from === node.id);
@@ -1441,8 +1727,37 @@ Generate the edge JSON:`;
     if (entryNodes.length === 0 && anchorNodes.length === 0) {
       warnings.push('No entry or anchor nodes defined - story has no starting point');
     }
-    if (graph.nodes.filter(n => n.type === 'ending').length === 0) {
+    if (endingNodes.length === 0) {
       warnings.push('No ending nodes defined');
+    }
+
+    // Check ending reachability
+    for (const ending of endingNodes) {
+      if (!reachableNodes.has(ending.id)) {
+        warnings.push(`Ending "${ending.id}" is not reachable from any entry node`);
+      }
+    }
+
+    // Check for nodes trapped in cycles (can't reach any ending)
+    if (endingNodes.length > 0) {
+      const canReachEnding = new Set<string>(endings);
+      const reverseQueue = [...endings];
+      while (reverseQueue.length > 0) {
+        const current = reverseQueue.shift()!;
+        const incoming = graph.edges.filter(e => e.to === current);
+        for (const edge of incoming) {
+          if (!canReachEnding.has(edge.from) && nodeIds.has(edge.from)) {
+            canReachEnding.add(edge.from);
+            reverseQueue.push(edge.from);
+          }
+        }
+      }
+
+      for (const node of graph.nodes) {
+        if (node.type !== 'ending' && reachableNodes.has(node.id) && !canReachEnding.has(node.id)) {
+          warnings.push(`Node "${node.id}" is reachable but trapped in a cycle (cannot reach any ending)`);
+        }
+      }
     }
 
     // Check anchor node ordering (should have orderHint set)

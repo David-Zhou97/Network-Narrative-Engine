@@ -170,11 +170,71 @@ export class GraphManager {
     }
 
     // Check for at least one entry and one ending
-    if (this.getEntryNodes().length === 0) {
+    const entryNodes = this.getEntryNodes();
+    const endingNodes = this.getEndingNodes();
+    if (entryNodes.length === 0) {
       errors.push('No entry nodes defined');
     }
-    if (this.getEndingNodes().length === 0) {
+    if (endingNodes.length === 0) {
       errors.push('No ending nodes defined');
+    }
+
+    // Check reachability: all endings should be reachable from at least one entry
+    if (entryNodes.length > 0 && endingNodes.length > 0) {
+      const reachable = new Set<string>();
+      const queue = entryNodes.map(e => e.id);
+      for (const id of queue) {
+        reachable.add(id);
+      }
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        const outgoing = this.outgoingEdges.get(current) ?? [];
+        for (const edge of outgoing) {
+          if (!reachable.has(edge.to)) {
+            reachable.add(edge.to);
+            queue.push(edge.to);
+          }
+        }
+      }
+
+      for (const ending of endingNodes) {
+        if (!reachable.has(ending.id)) {
+          errors.push(`Ending node "${ending.id}" is not reachable from any entry node`);
+        }
+      }
+
+      // Check that every non-ending node can reach at least one ending
+      // (reverse BFS from endings)
+      const canReachEnding = new Set<string>(endingNodes.map(e => e.id));
+      const reverseQueue = [...canReachEnding];
+      while (reverseQueue.length > 0) {
+        const current = reverseQueue.shift()!;
+        const incoming = this.incomingEdges.get(current) ?? [];
+        for (const edge of incoming) {
+          if (!canReachEnding.has(edge.from)) {
+            canReachEnding.add(edge.from);
+            reverseQueue.push(edge.from);
+          }
+        }
+      }
+
+      for (const [nodeId, node] of this.nodes) {
+        if (node.type !== 'ending' && reachable.has(nodeId) && !canReachEnding.has(nodeId)) {
+          errors.push(`Node "${nodeId}" is reachable but cannot reach any ending (trapped in cycle)`);
+        }
+      }
+    }
+
+    // Check merge nodes have >= 2 incoming edges
+    for (const [nodeId, node] of this.nodes) {
+      if (node.type === 'merge') {
+        const incoming = this.incomingEdges.get(nodeId) ?? [];
+        if (incoming.length < 2) {
+          warnings.push(
+            `Merge node "${nodeId}" has ${incoming.length} incoming edge(s) (expected >= 2)`
+          );
+        }
+      }
     }
 
     // Check that story nodes have exactly 3 outgoing edges (recommended)
