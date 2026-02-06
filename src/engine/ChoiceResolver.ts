@@ -17,20 +17,34 @@ export class ChoiceResolver {
 
   /**
    * Get available choices for the current node
-   * Returns up to 3 valid edges based on conditions
+   * Returns up to 3 valid edges based on conditions.
+   * Filters out edges leading to already-visited nodes to prevent circular paths.
    */
   getAvailableChoices(nodeId: string): Edge[] {
     const allEdges = this.graphManager.getOutgoingEdges(nodeId);
-    const availableEdges: Edge[] = [];
+    const visitedNodeIds = this.stateManager.getVisitedNodeIds();
+    const forwardEdges: Edge[] = [];
+    const fallbackEdges: Edge[] = [];
 
     for (const edge of allEdges) {
-      if (this.isEdgeAvailable(edge)) {
-        availableEdges.push(edge);
+      if (!this.isEdgeAvailable(edge)) {
+        continue;
+      }
+      // Prefer edges to unvisited nodes (forward progress)
+      if (!visitedNodeIds.has(edge.to)) {
+        forwardEdges.push(edge);
+      } else {
+        // Keep visited-node edges as fallback in case all paths were visited
+        fallbackEdges.push(edge);
       }
     }
 
+    // Use forward edges when available; fall back to visited-node edges only
+    // if no forward path exists (avoids trapping the player)
+    const choicePool = forwardEdges.length > 0 ? forwardEdges : fallbackEdges;
+
     // Return top 3 by priority
-    return availableEdges.slice(0, 3);
+    return choicePool.slice(0, 3);
   }
 
   /**

@@ -306,6 +306,18 @@ export class StateManager {
   }
 
   /**
+   * Get all node IDs the player has visited (from history + current node)
+   */
+  getVisitedNodeIds(): Set<string> {
+    const visited = new Set<string>();
+    visited.add(this.state.currentNodeId);
+    for (const entry of this.state.history) {
+      visited.add(entry.nodeId);
+    }
+    return visited;
+  }
+
+  /**
    * Get recent history entries
    */
   getRecentHistory(count: number = 5): HistoryEntry[] {

@@ -453,12 +453,15 @@ PLOT TWIST REQUIREMENTS:
 - Include at least ONE "all is lost" moment before the climax
 - Subvert expectations - allies may have hidden agendas, enemies may have sympathetic reasons
 
-CRITICAL: NO DEAD ENDS ALLOWED!
+CRITICAL: NO DEAD ENDS AND NO BACKWARD EDGES ALLOWED!
 - EVERY non-ending node MUST have at least one outgoing edge
+- ALL edges MUST go FORWARD (from lower orderHint to higher orderHint)
+- NEVER create edges that point backward to earlier nodes
 - Entry nodes MUST connect to anchor or transition nodes
-- Transition nodes MUST connect to anchors, merges, or endings
-- Anchor nodes MUST connect to transitions, merges, or endings
-- Merge nodes MUST connect to anchors or endings
+- Transition nodes MUST connect FORWARD to anchors, merges, or endings with HIGHER orderHint
+- Anchor nodes MUST connect FORWARD to transitions, merges, or endings with HIGHER orderHint
+- Merge nodes MUST connect FORWARD to anchors or endings with HIGHER orderHint
+- The story flows in ONE DIRECTION - always forward toward endings
 - Create a COMPLETE PATH from every entry to at least one ending
 
 CRITICAL RESPONSE FORMAT RULES:
@@ -570,12 +573,15 @@ NODE SPECIFICATIONS:
 - TRANSITION nodes should have purpose: bridge/escalation/relief/revelation/preparation
 - MERGE nodes should specify mergeStrategy: acknowledge_differences/common_ground/forced_unity
 
-CRITICAL CONNECTIVITY REQUIREMENTS:
-- EVERY entry node must have an edge to the first anchor or a transition
-- EVERY anchor node must have edges leading to the next anchor, a transition, a merge, or an ending
-- EVERY transition node must have an edge to an anchor, merge, or ending
-- EVERY merge node must have an edge to the next anchor or an ending
+CRITICAL CONNECTIVITY REQUIREMENTS (FORWARD-ONLY):
+- ALL edges MUST go from lower orderHint to HIGHER orderHint (forward in the story)
+- NEVER create edges that go backward to earlier nodes
+- EVERY entry node must have an edge to the first anchor or transition
+- EVERY anchor node must have edges leading to the NEXT anchor (higher orderHint), a transition, a merge, or an ending
+- EVERY transition node must have an edge to a LATER anchor (higher orderHint), merge, or ending
+- EVERY merge node must have an edge to a LATER anchor or an ending
 - The LAST anchor (highest orderHint) must connect to endings
+- The story ALWAYS flows FORWARD - like a river, never going backward
 - NO NODE except endings should be a dead end!
 
 Generate the extended skeleton JSON:`;
@@ -612,10 +618,17 @@ Generate the extended skeleton JSON:`;
       return { nodes: [], edges: [] };
     }
 
-    // Find potential target nodes (existing nodes this could connect to)
+    // Find potential FORWARD target nodes (existing nodes with higher orderHint)
+    const sourceOrder = sourceNode.orderHint ?? this.estimateNodeOrder(sourceNode, existingEdges, existingNodes);
     const potentialTargets = existingNodes
-      .filter(n => n.id !== sourceNode.id && n.type !== 'entry')
-      .map(n => `${n.id} (${n.type}): ${n.title || n.description?.slice(0, 50)}`);
+      .filter(n => {
+        if (n.id === sourceNode.id || n.type === 'entry') return false;
+        // Only include nodes that are FORWARD in the story (higher orderHint)
+        const targetOrder = n.orderHint ?? this.estimateNodeOrder(n, existingEdges, existingNodes);
+        return targetOrder > sourceOrder || n.type === 'ending';
+      })
+      .sort((a, b) => (a.orderHint ?? 0) - (b.orderHint ?? 0))
+      .map(n => `${n.id} (${n.type}, order:${n.orderHint ?? '?'}): ${n.title || n.description?.slice(0, 50)}`);
 
     const systemPrompt = `You are a narrative designer adding BRANCHING CHOICES to a story node.
 Create meaningful choices that lead to different outcomes, with potential for PLOT TWISTS.
@@ -629,10 +642,17 @@ NODE TYPES YOU CAN CREATE:
 CRITICAL DESIGN PRINCIPLES:
 1. NO PERFECT CHOICES - Every option has trade-offs
 2. Each choice should feel DISTINCT (not just different wording)
-3. Choices can lead to existing nodes OR create new intermediate nodes
+3. Choices can lead to existing FORWARD nodes OR create new intermediate nodes
 4. Include conflict, benefit, and cost for each choice
 5. Use TRANSITION nodes for new intermediate content
 6. Use MERGE nodes when paths need to converge
+
+CRITICAL - FORWARD PROGRESS ONLY:
+- ALL edges MUST go FORWARD in the story (to nodes with HIGHER orderHint)
+- NEVER create edges that go BACKWARD to earlier story nodes
+- NEVER connect to nodes the player has already passed through
+- The story must ALWAYS move FORWARD toward an ending
+- Think of the story as a river flowing downhill - choices change the path but always move forward
 
 PLOT TWIST OPPORTUNITIES:
 - Consider if a choice could lead to an unexpected REVELATION
@@ -711,7 +731,7 @@ Conflict intensity: ${Math.round(config.conflictIntensity * 100)}%
 EXISTING EDGES FROM THIS NODE:
 ${existingOutgoingEdges.map(e => `- To "${e.to}": "${e.choiceHint}"`).join('\n') || 'None yet'}
 
-EXISTING NODES TO POTENTIALLY CONNECT TO:
+FORWARD NODES TO POTENTIALLY CONNECT TO (these are LATER in the story):
 ${potentialTargets.slice(0, 10).join('\n')}
 
 AVAILABLE STATE VARIABLES:
@@ -722,15 +742,17 @@ REQUIREMENTS:
 - Each choice needs a dilemma with clear trade-offs
 - Create TRANSITION nodes for new intermediate content (use "revelation" purpose for plot twists)
 - Create MERGE nodes when paths should converge
-- Prefer connecting to existing anchor/merge/ending nodes when it makes narrative sense
-- If creating new nodes, they should eventually connect to existing nodes
+- Prefer connecting to existing FORWARD anchor/merge/ending nodes when it makes narrative sense
+- If creating new nodes, they MUST connect FORWARD to existing nodes with higher orderHint
 - Consider opportunities for PLOT TWISTS: betrayals, revelations, false victories
 
-CRITICAL - NO DEAD ENDS:
-- If you create ANY new nodes, you MUST also create edges FROM those new nodes TO existing nodes
-- Example: If you create "transition_new_1", you MUST also create an edge from "transition_new_1" to an existing anchor/merge/ending
+CRITICAL - NO DEAD ENDS AND NO BACKWARD CONNECTIONS:
+- If you create ANY new nodes, you MUST also create edges FROM those new nodes TO FORWARD existing nodes
+- Example: If you create "transition_new_1", you MUST also create an edge from "transition_new_1" to a LATER anchor/merge/ending
 - Every node in your "nodes" array MUST have a corresponding outgoing edge in your "edges" array
-- This is MANDATORY - stories with dead ends are broken!
+- NEVER connect to nodes that come EARLIER in the story - all paths must move FORWARD
+- The story flows in ONE DIRECTION only - toward the endings
+- This is MANDATORY - stories with backward connections or dead ends are broken!
 
 Generate the branches JSON:`;
 
@@ -1034,13 +1056,16 @@ REQUIRED PLOT TWISTS (mark these clearly in node descriptions):
 - At least ONE "revelation" node with a shocking truth that changes everything
 - At least ONE "all_is_lost" node where the protagonist loses everything
 
-CRITICAL - NO DEAD ENDS ALLOWED:
+CRITICAL - NO DEAD ENDS AND NO BACKWARD EDGES ALLOWED:
 - EVERY entry node must have outgoing edges to story nodes
-- EVERY story node must have exactly 2 outgoing edges leading to other story nodes or endings
-- EVERY converge node must have outgoing edges to story nodes or endings
+- EVERY story node must have exactly 2 outgoing edges leading to LATER story nodes or endings
+- EVERY converge node must have outgoing edges to LATER story nodes or endings
+- ALL edges MUST go FORWARD in the story - NEVER point backward to earlier nodes
+- The story flows in ONE DIRECTION ONLY - always toward endings
 - The ONLY nodes without outgoing edges should be ENDING nodes
 - Create a COMPLETE graph where every path eventually leads to an ending
 - Before finishing, verify: for each non-ending node, there must be at least one edge with that node as "from"
+- Before finishing, verify: NO edge points from a later node to an earlier node
 
 REMEMBER: The player should feel the weight of every decision. Create a LONG journey with MANY twists before reaching the end.
 
@@ -1255,6 +1280,9 @@ Generate the edge JSON:`;
 
     // Step 7: Ensure no nodes are trapped in cycles with no exit to an ending
     this.fixCycleTraps(graph, outgoingEdgesMap, incomingEdgesMap);
+
+    // Step 8: Enforce forward-only progress (remove backward edges that create loops)
+    this.enforceForwardProgress(graph);
   }
 
   /**
@@ -1645,6 +1673,129 @@ Generate the edge JSON:`;
   }
 
   /**
+   * Enforce forward-only progress by removing backward edges that create loops.
+   * Computes a BFS depth from entry nodes, then removes any edge where
+   * the target depth is <= the source depth (i.e., a backward or lateral edge).
+   * After removal, reconnects any stranded nodes to forward targets.
+   */
+  private enforceForwardProgress(graph: GeneratedGraph): void {
+    const entryNodes = graph.nodes.filter(n => n.type === 'entry');
+    if (entryNodes.length === 0) return;
+
+    // Step 1: Compute BFS depth for every node from entries
+    const nodeDepth = new Map<string, number>();
+    const queue: { id: string; depth: number }[] = [];
+    for (const entry of entryNodes) {
+      nodeDepth.set(entry.id, 0);
+      queue.push({ id: entry.id, depth: 0 });
+    }
+
+    // Build temporary outgoing map
+    const outMap = new Map<string, GeneratedEdge[]>();
+    for (const node of graph.nodes) {
+      outMap.set(node.id, []);
+    }
+    for (const edge of graph.edges) {
+      outMap.get(edge.from)?.push(edge);
+    }
+
+    while (queue.length > 0) {
+      const { id, depth } = queue.shift()!;
+      for (const edge of (outMap.get(id) ?? [])) {
+        if (!nodeDepth.has(edge.to)) {
+          nodeDepth.set(edge.to, depth + 1);
+          queue.push({ id: edge.to, depth: depth + 1 });
+        }
+      }
+    }
+
+    // Also factor in orderHint for anchor nodes so that anchors with lower
+    // orderHint are always considered "earlier" in the story
+    const getEffectiveDepth = (nodeId: string): number => {
+      const node = graph.nodes.find(n => n.id === nodeId);
+      const bfsDepth = nodeDepth.get(nodeId) ?? 0;
+      if (node?.type === 'anchor' && node.orderHint !== undefined) {
+        // Scale orderHint so it's comparable to BFS depth
+        return Math.max(bfsDepth, node.orderHint);
+      }
+      return bfsDepth;
+    };
+
+    // Step 2: Remove backward edges (target depth <= source depth)
+    // Exception: edges TO ending nodes are always allowed (they're terminal)
+    const endingIds = new Set(graph.nodes.filter(n => n.type === 'ending').map(n => n.id));
+    const removedEdges: GeneratedEdge[] = [];
+
+    graph.edges = graph.edges.filter(edge => {
+      if (endingIds.has(edge.to)) return true; // Always allow edges to endings
+
+      const sourceDepth = getEffectiveDepth(edge.from);
+      const targetDepth = getEffectiveDepth(edge.to);
+
+      if (targetDepth <= sourceDepth) {
+        removedEdges.push(edge);
+        return false;
+      }
+      return true;
+    });
+
+    if (removedEdges.length > 0) {
+      console.log(`[StoryGenerator] enforceForwardProgress: Removed ${removedEdges.length} backward edge(s)`);
+    }
+
+    // Step 3: Rebuild outgoing map after removal
+    const newOutMap = new Map<string, GeneratedEdge[]>();
+    for (const node of graph.nodes) {
+      newOutMap.set(node.id, []);
+    }
+    for (const edge of graph.edges) {
+      newOutMap.get(edge.from)?.push(edge);
+    }
+
+    // Step 4: Fix any non-ending nodes that lost all outgoing edges
+    // Sort all non-ending nodes by depth so we can find "next forward" nodes
+    const nodesByDepth = graph.nodes
+      .filter(n => n.type !== 'entry')
+      .sort((a, b) => getEffectiveDepth(a.id) - getEffectiveDepth(b.id));
+
+    for (const node of graph.nodes) {
+      if (endingIds.has(node.id)) continue;
+
+      const outgoing = newOutMap.get(node.id) ?? [];
+      if (outgoing.length > 0) continue;
+
+      // This node lost all outgoing edges; connect to the nearest forward node
+      const myDepth = getEffectiveDepth(node.id);
+      let reconnected = false;
+
+      // First try to find a forward non-ending node
+      for (const candidate of nodesByDepth) {
+        if (candidate.id === node.id) continue;
+        const candidateDepth = getEffectiveDepth(candidate.id);
+        if (candidateDepth > myDepth) {
+          const newEdge = this.createFixEdge(node, candidate);
+          graph.edges.push(newEdge);
+          newOutMap.get(node.id)?.push(newEdge);
+          reconnected = true;
+          console.log(`[StoryGenerator] enforceForwardProgress: Reconnected "${node.id}" → "${candidate.id}"`);
+          break;
+        }
+      }
+
+      // Fallback: connect to an ending
+      if (!reconnected) {
+        const endingArr = graph.nodes.filter(n => n.type === 'ending');
+        if (endingArr.length > 0) {
+          const newEdge = this.createFixEdge(node, endingArr[0]);
+          graph.edges.push(newEdge);
+          newOutMap.get(node.id)?.push(newEdge);
+          console.log(`[StoryGenerator] enforceForwardProgress: Reconnected "${node.id}" → ending "${endingArr[0].id}"`);
+        }
+      }
+    }
+  }
+
+  /**
    * Create a fix edge between two nodes with valid choiceType and contextual hints
    */
   private createFixEdge(source: GeneratedNode, target: GeneratedNode): GeneratedEdge {
@@ -1662,8 +1813,9 @@ Generate the edge JSON:`;
   }
 
   /**
-   * Find the best target node for a dead-end node based on story structure.
-   * Avoids creating 2-node cycles by checking both incoming and outgoing connections.
+   * Find the best FORWARD target node for a dead-end node based on story structure.
+   * Always prefers forward nodes (higher orderHint) to maintain linear story flow.
+   * Avoids creating backward connections or 2-node cycles.
    */
   private findBestTargetForNode(
     sourceNode: GeneratedNode,
@@ -1676,94 +1828,57 @@ Generate the edge JSON:`;
     // Build sets of nodes already connected from/to source
     const sourceOutgoing = new Set(allEdges.filter(e => e.from === sourceNode.id).map(e => e.to));
     const sourceIncoming = new Set(allEdges.filter(e => e.to === sourceNode.id).map(e => e.from));
+    const sourceOrder = this.estimateNodeOrder(sourceNode, allEdges, allNodes);
 
-    // Helper: check if connecting source → target would create a 2-node cycle
-    const wouldCreateCycle = (targetId: string): boolean => {
-      return sourceIncoming.has(targetId) && !sourceOutgoing.has(targetId);
+    // Helper: check if connecting source → target would go backward or create a cycle
+    const isValidForwardTarget = (targetId: string): boolean => {
+      if (sourceOutgoing.has(targetId)) return false;
+      if (targetId === sourceNode.id) return false;
+      // Avoid 2-node cycles
+      if (sourceIncoming.has(targetId)) return false;
+      return true;
     };
 
-    // Strategy 1: For transition nodes, connect to a FORWARD anchor or merge.
-    // Estimate the transition's position from its incoming edges' source orderHints.
-    if (sourceNode.type === 'transition') {
-      const sourceOrder = this.estimateNodeOrder(sourceNode, allEdges, allNodes);
-      // Pick the nearest forward anchor (higher orderHint than source)
-      const forwardAnchors = anchorNodes
-        .filter(a => (a.orderHint ?? 0) > sourceOrder && !sourceOutgoing.has(a.id) && !wouldCreateCycle(a.id) && a.id !== sourceNode.id);
-      if (forwardAnchors.length > 0) {
-        return forwardAnchors[0]; // Already sorted ascending, first is nearest forward
-      }
-      for (const merge of mergeNodes) {
-        if (!sourceOutgoing.has(merge.id) && !wouldCreateCycle(merge.id) && merge.id !== sourceNode.id) {
-          return merge;
-        }
-      }
-      // Last resort for transitions: any anchor (even backward) is better than nothing,
-      // but prefer endings over going backward
-      if (endingNodes.length > 0) {
-        return endingNodes[0];
-      }
+    // Helper: check if target is forward (higher orderHint) from source
+    const isForward = (target: GeneratedNode): boolean => {
+      const targetOrder = target.orderHint ?? this.estimateNodeOrder(target, allEdges, allNodes);
+      return targetOrder > sourceOrder;
+    };
+
+    // Strategy 1: Find the nearest forward anchor
+    const forwardAnchors = anchorNodes
+      .filter(a => isForward(a) && isValidForwardTarget(a.id));
+    if (forwardAnchors.length > 0) {
+      return forwardAnchors[0]; // Already sorted by orderHint ascending
     }
 
-    // Strategy 2: For anchor nodes, connect to next anchor by orderHint, avoiding cycles
-    if (sourceNode.type === 'anchor') {
-      const currentOrder = sourceNode.orderHint ?? 0;
-      for (const anchor of anchorNodes) {
-        const anchorOrder = anchor.orderHint ?? 0;
-        if (anchorOrder > currentOrder && !sourceOutgoing.has(anchor.id) && !wouldCreateCycle(anchor.id) && anchor.id !== sourceNode.id) {
-          return anchor;
-        }
-      }
-      for (const merge of mergeNodes) {
-        if (!sourceOutgoing.has(merge.id) && !wouldCreateCycle(merge.id) && merge.id !== sourceNode.id) {
-          return merge;
-        }
-      }
-      const transitionNodes = allNodes.filter(n => n.type === 'transition');
-      for (const transition of transitionNodes) {
-        if (!sourceOutgoing.has(transition.id) && !wouldCreateCycle(transition.id) && transition.id !== sourceNode.id) {
-          return transition;
-        }
-      }
+    // Strategy 2: Find a forward merge node
+    const forwardMerges = mergeNodes
+      .filter(m => isForward(m) && isValidForwardTarget(m.id));
+    if (forwardMerges.length > 0) {
+      return forwardMerges[0];
     }
 
-    // Strategy 3: For entry nodes, connect to first anchor or transition
+    // Strategy 3: Find any forward non-ending node
+    const forwardNodes = allNodes
+      .filter(n => n.type !== 'ending' && n.type !== 'entry' && isForward(n) && isValidForwardTarget(n.id))
+      .sort((a, b) => (a.orderHint ?? 0) - (b.orderHint ?? 0));
+    if (forwardNodes.length > 0) {
+      return forwardNodes[0];
+    }
+
+    // Strategy 4: For entry nodes specifically, connect to the earliest anchor
     if (sourceNode.type === 'entry') {
-      if (anchorNodes.length > 0) {
+      if (anchorNodes.length > 0 && isValidForwardTarget(anchorNodes[0].id)) {
         return anchorNodes[0];
       }
       const transitionNodes = allNodes.filter(n => n.type === 'transition');
-      if (transitionNodes.length > 0) {
+      if (transitionNodes.length > 0 && isValidForwardTarget(transitionNodes[0].id)) {
         return transitionNodes[0];
       }
     }
 
-    // Strategy 4: For merge nodes, connect to next anchor or ending (avoiding cycles)
-    if (sourceNode.type === 'merge') {
-      for (const anchor of anchorNodes) {
-        if (!sourceOutgoing.has(anchor.id) && !wouldCreateCycle(anchor.id) && anchor.id !== sourceNode.id) {
-          return anchor;
-        }
-      }
-      if (endingNodes.length > 0) {
-        return endingNodes[0];
-      }
-    }
-
-    // Strategy 5: For story/converge nodes, connect to any forward node
-    if (sourceNode.type === 'story' || sourceNode.type === 'converge') {
-      for (const anchor of anchorNodes) {
-        if (!sourceOutgoing.has(anchor.id) && !wouldCreateCycle(anchor.id) && anchor.id !== sourceNode.id) {
-          return anchor;
-        }
-      }
-      for (const merge of mergeNodes) {
-        if (!sourceOutgoing.has(merge.id) && !wouldCreateCycle(merge.id) && merge.id !== sourceNode.id) {
-          return merge;
-        }
-      }
-    }
-
-    // Fallback: Return first ending (endings can't create cycles since they have no outgoing)
+    // Fallback: Connect to an ending (endings are always "forward" since they're terminal)
     if (endingNodes.length > 0) {
       return endingNodes[0];
     }
