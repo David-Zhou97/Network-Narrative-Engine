@@ -365,8 +365,9 @@
     }
   ],
   "edges": [
+
     {
-      "id": "e_mansion_to_meeting",
+      "id": "e_mansion_to_victoria_meeting",
       "from": "entry_mansion",
       "to": "story_victoria_meeting",
       "choiceType": "agree",
@@ -374,7 +375,7 @@
       "priority": 1
     },
     {
-      "id": "e_mansion_to_room",
+      "id": "e_mansion_to_eleanor_room",
       "from": "entry_mansion",
       "to": "story_eleanor_room",
       "choiceType": "investigate",
@@ -382,15 +383,16 @@
       "priority": 2
     },
     {
-      "id": "e_mansion_to_marcus",
+      "id": "e_mansion_to_catherine_secret",
       "from": "entry_mansion",
-      "to": "story_marcus_nervous",
+      "to": "story_catherine_secret",
       "choiceType": "question",
-      "choiceHint": "Notice Marcus watching from a window and approach him",
+      "choiceHint": "Ask about Eleanor's personal assistant first",
       "priority": 3
     },
+
     {
-      "id": "e_office_to_catherine",
+      "id": "e_office_to_catherine_secret",
       "from": "entry_office",
       "to": "story_catherine_secret",
       "choiceType": "agree",
@@ -398,53 +400,49 @@
       "priority": 1
     },
     {
-      "id": "e_office_to_harlow",
-      "from": "entry_office",
-      "to": "story_harlow_encounter",
-      "choiceType": "investigate",
-      "choiceHint": "Visit the police station to check official records first",
-      "priority": 2
-    },
-    {
-      "id": "e_office_to_mansion",
+      "id": "e_office_to_victoria_meeting",
       "from": "entry_office",
       "to": "story_victoria_meeting",
       "choiceType": "confront",
       "choiceHint": "Go directly to the Ashworth mansion",
-      "priority": 3
-    },
-    {
-      "id": "e_meeting_to_room",
-      "from": "story_victoria_meeting",
-      "to": "story_eleanor_room",
-      "choiceType": "investigate",
-      "choiceHint": "Ask to examine Eleanor's personal quarters",
-      "priority": 1
-    },
-    {
-      "id": "e_meeting_to_marcus",
-      "from": "story_victoria_meeting",
-      "to": "story_marcus_nervous",
-      "choiceType": "question",
-      "choiceHint": "Request to speak with other family members",
       "priority": 2
     },
     {
-      "id": "e_meeting_to_confrontation",
+      "id": "e_office_to_eleanor_room",
+      "from": "entry_office",
+      "to": "story_eleanor_room",
+      "choiceType": "investigate",
+      "choiceHint": "Visit the mansion to examine Eleanor's room",
+      "priority": 3
+    },
+
+    {
+      "id": "e_victoria_meeting_to_find_diary",
       "from": "story_victoria_meeting",
-      "to": "story_victoria_confrontation",
-      "choiceType": "confront",
-      "choiceHint": "Press Victoria on inconsistencies in her story",
-      "priority": 3,
-      "conditions": [
-        { "type": "flag", "target": "found_diary", "operator": "==", "value": true }
-      ],
-      "effects": [
-        { "type": "add", "target": "character.victoria.relationship", "value": -20 }
-      ]
+      "to": "story_find_diary",
+      "choiceType": "investigate",
+      "choiceHint": "Search Eleanor's quarters for hidden clues",
+      "priority": 1
     },
     {
-      "id": "e_room_investigate",
+      "id": "e_victoria_meeting_to_marcus_nervous",
+      "from": "story_victoria_meeting",
+      "to": "story_marcus_nervous",
+      "choiceType": "question",
+      "choiceHint": "Request to speak with Marcus about Eleanor",
+      "priority": 2
+    },
+    {
+      "id": "e_victoria_meeting_to_harlow_encounter",
+      "from": "story_victoria_meeting",
+      "to": "story_harlow_encounter",
+      "choiceType": "leave",
+      "choiceHint": "Leave to consult with the police detective",
+      "priority": 3
+    },
+
+    {
+      "id": "e_eleanor_room_to_find_diary",
       "from": "story_eleanor_room",
       "to": "story_find_diary",
       "choiceType": "investigate",
@@ -452,7 +450,7 @@
       "priority": 1
     },
     {
-      "id": "e_room_to_marcus",
+      "id": "e_eleanor_room_to_marcus_nervous",
       "from": "story_eleanor_room",
       "to": "story_marcus_nervous",
       "choiceType": "leave",
@@ -460,39 +458,72 @@
       "priority": 2
     },
     {
-      "id": "e_room_to_harlow",
+      "id": "e_eleanor_room_to_harlow_encounter",
       "from": "story_eleanor_room",
       "to": "story_harlow_encounter",
       "choiceType": "question",
       "choiceHint": "Call the police detective handling the case",
       "priority": 3
     },
+
     {
-      "id": "e_diary_to_catherine",
-      "from": "story_find_diary",
-      "to": "story_catherine_secret",
+      "id": "e_catherine_secret_to_find_diary",
+      "from": "story_catherine_secret",
+      "to": "story_find_diary",
       "choiceType": "investigate",
-      "choiceHint": "Track down Catherine Mills mentioned in the diary",
+      "choiceHint": "Follow the clues Catherine mentioned to the mansion",
       "priority": 1
     },
     {
-      "id": "e_diary_to_marcus",
-      "from": "story_find_diary",
+      "id": "e_catherine_secret_to_marcus_nervous",
+      "from": "story_catherine_secret",
       "to": "story_marcus_nervous",
       "choiceType": "confront",
-      "choiceHint": "Confront Marcus about the diary's accusations",
+      "choiceHint": "Confront Marcus with Catherine's information",
       "priority": 2
     },
     {
-      "id": "e_diary_to_victoria",
+      "id": "e_catherine_secret_to_harlow_encounter",
+      "from": "story_catherine_secret",
+      "to": "story_harlow_encounter",
+      "choiceType": "question",
+      "choiceHint": "Verify this information with the police first",
+      "priority": 3
+    },
+
+    {
+      "id": "e_find_diary_to_marcus_breaks",
+      "from": "story_find_diary",
+      "to": "story_marcus_breaks",
+      "choiceType": "confront",
+      "choiceHint": "Confront Marcus about the diary's accusations",
+      "priority": 1,
+      "effects": [
+        { "type": "add", "target": "resources.evidence", "value": 1 }
+      ]
+    },
+    {
+      "id": "e_find_diary_to_harlow_alliance",
+      "from": "story_find_diary",
+      "to": "story_harlow_alliance",
+      "choiceType": "agree",
+      "choiceHint": "Take the diary to Detective Harlow as evidence",
+      "priority": 2,
+      "effects": [
+        { "type": "add", "target": "player.reputation", "value": 5 }
+      ]
+    },
+    {
+      "id": "e_find_diary_to_victoria_confrontation",
       "from": "story_find_diary",
       "to": "story_victoria_confrontation",
       "choiceType": "confront",
       "choiceHint": "Confront Victoria with Eleanor's words",
       "priority": 3
     },
+
     {
-      "id": "e_marcus_press",
+      "id": "e_marcus_nervous_press",
       "from": "story_marcus_nervous",
       "to": "story_marcus_breaks",
       "choiceType": "confront",
@@ -503,7 +534,7 @@
       ]
     },
     {
-      "id": "e_marcus_sympathize",
+      "id": "e_marcus_nervous_comfort",
       "from": "story_marcus_nervous",
       "to": "story_marcus_breaks",
       "choiceType": "comfort",
@@ -514,63 +545,16 @@
       ]
     },
     {
-      "id": "e_marcus_leave",
+      "id": "e_marcus_nervous_to_harlow_alliance",
       "from": "story_marcus_nervous",
-      "to": "story_harlow_encounter",
-      "choiceType": "leave",
-      "choiceHint": "Leave and report suspicious behavior to police",
-      "priority": 3
-    },
-    {
-      "id": "e_marcus_breaks_to_safe",
-      "from": "story_marcus_breaks",
-      "to": "story_safe_house",
-      "choiceType": "investigate",
-      "choiceHint": "Follow the lead to Eleanor's hiding place",
-      "priority": 1
-    },
-    {
-      "id": "e_marcus_breaks_to_victoria",
-      "from": "story_marcus_breaks",
-      "to": "story_victoria_confrontation",
-      "choiceType": "confront",
-      "choiceHint": "Confront Victoria with Marcus's confession",
-      "priority": 2
-    },
-    {
-      "id": "e_marcus_breaks_to_harlow",
-      "from": "story_marcus_breaks",
       "to": "story_harlow_alliance",
-      "choiceType": "agree",
-      "choiceHint": "Take the evidence to Detective Harlow",
+      "choiceType": "leave",
+      "choiceHint": "Report suspicious behavior to the police",
       "priority": 3
     },
+
     {
-      "id": "e_catherine_to_safe",
-      "from": "story_catherine_secret",
-      "to": "story_safe_house",
-      "choiceType": "investigate",
-      "choiceHint": "Use the key to find the storage unit",
-      "priority": 1
-    },
-    {
-      "id": "e_catherine_to_harlow",
-      "from": "story_catherine_secret",
-      "to": "story_harlow_encounter",
-      "choiceType": "question",
-      "choiceHint": "Verify this information with the police first",
-      "priority": 2
-    },
-    {
-      "id": "e_catherine_to_victoria",
-      "from": "story_catherine_secret",
-      "to": "story_victoria_confrontation",
-      "choiceType": "confront",
-      "choiceHint": "Confront Victoria with the photographs",
-      "priority": 3
-    },
-    {
-      "id": "e_harlow_cooperate",
+      "id": "e_harlow_encounter_to_alliance",
       "from": "story_harlow_encounter",
       "to": "story_harlow_alliance",
       "choiceType": "agree",
@@ -578,26 +562,52 @@
       "priority": 1
     },
     {
-      "id": "e_harlow_defy",
+      "id": "e_harlow_encounter_to_marcus_breaks",
       "from": "story_harlow_encounter",
-      "to": "story_marcus_nervous",
-      "choiceType": "refuse",
-      "choiceHint": "Refuse to share and continue independently",
-      "priority": 2,
+      "to": "story_marcus_breaks",
+      "choiceType": "confront",
+      "choiceHint": "Share what you know and push for a confrontation",
+      "priority": 2
+    },
+    {
+      "id": "e_harlow_encounter_to_victoria_confrontation",
+      "from": "story_harlow_encounter",
+      "to": "story_victoria_confrontation",
+      "choiceType": "question",
+      "choiceHint": "Ask Harlow about Victoria's alibi",
+      "priority": 3
+    },
+
+    {
+      "id": "e_marcus_breaks_to_safe_house_investigate",
+      "from": "story_marcus_breaks",
+      "to": "story_safe_house",
+      "choiceType": "investigate",
+      "choiceHint": "Follow the lead to Eleanor's hiding place",
+      "priority": 1,
       "effects": [
-        { "type": "add", "target": "character.james.relationship", "value": -20 }
+        { "type": "add", "target": "resources.evidence", "value": 1 }
       ]
     },
     {
-      "id": "e_harlow_negotiate",
-      "from": "story_harlow_encounter",
-      "to": "story_catherine_secret",
-      "choiceType": "deflect",
-      "choiceHint": "Suggest you each pursue different leads",
-      "priority": 3
+      "id": "e_marcus_breaks_to_safe_house_confront",
+      "from": "story_marcus_breaks",
+      "to": "story_safe_house",
+      "choiceType": "confront",
+      "choiceHint": "Use Marcus's information to find Eleanor",
+      "priority": 2
     },
     {
-      "id": "e_alliance_to_safe",
+      "id": "e_marcus_breaks_to_safe_house_agree",
+      "from": "story_marcus_breaks",
+      "to": "story_safe_house",
+      "choiceType": "agree",
+      "choiceHint": "Share what Marcus revealed and track Eleanor down",
+      "priority": 3
+    },
+
+    {
+      "id": "e_harlow_alliance_to_safe_house_investigate",
       "from": "story_harlow_alliance",
       "to": "story_safe_house",
       "choiceType": "investigate",
@@ -605,23 +615,49 @@
       "priority": 1
     },
     {
-      "id": "e_alliance_to_victoria",
+      "id": "e_harlow_alliance_to_safe_house_confront",
       "from": "story_harlow_alliance",
-      "to": "story_victoria_confrontation",
+      "to": "story_safe_house",
       "choiceType": "confront",
-      "choiceHint": "Bring Victoria in for formal questioning",
+      "choiceHint": "Lead a joint operation to find Eleanor",
       "priority": 2
     },
     {
-      "id": "e_alliance_to_marcus",
+      "id": "e_harlow_alliance_to_safe_house_agree",
       "from": "story_harlow_alliance",
-      "to": "story_marcus_nervous",
-      "choiceType": "question",
-      "choiceHint": "Interview other family members together",
+      "to": "story_safe_house",
+      "choiceType": "agree",
+      "choiceHint": "Let Harlow lead the search with your intel",
       "priority": 3
     },
+
     {
-      "id": "e_safe_to_final",
+      "id": "e_victoria_confrontation_to_safe_house_investigate",
+      "from": "story_victoria_confrontation",
+      "to": "story_safe_house",
+      "choiceType": "investigate",
+      "choiceHint": "Use the confrontation clues to find Eleanor",
+      "priority": 1
+    },
+    {
+      "id": "e_victoria_confrontation_to_safe_house_confront",
+      "from": "story_victoria_confrontation",
+      "to": "story_safe_house",
+      "choiceType": "confront",
+      "choiceHint": "Force Victoria to reveal Eleanor's location",
+      "priority": 2
+    },
+    {
+      "id": "e_victoria_confrontation_to_safe_house_deflect",
+      "from": "story_victoria_confrontation",
+      "to": "story_safe_house",
+      "choiceType": "deflect",
+      "choiceHint": "Buy time and secretly search for Eleanor",
+      "priority": 3
+    },
+
+    {
+      "id": "e_safe_house_to_final_agree",
       "from": "story_safe_house",
       "to": "branch_final",
       "choiceType": "agree",
@@ -629,7 +665,7 @@
       "priority": 1
     },
     {
-      "id": "e_safe_to_final_2",
+      "id": "e_safe_house_to_final_confront",
       "from": "story_safe_house",
       "to": "branch_final",
       "choiceType": "confront",
@@ -637,7 +673,7 @@
       "priority": 2
     },
     {
-      "id": "e_safe_to_final_3",
+      "id": "e_safe_house_to_final_refuse",
       "from": "story_safe_house",
       "to": "branch_final",
       "choiceType": "refuse",
@@ -647,34 +683,6 @@
         { "type": "add", "target": "character.victoria.relationship", "value": 50 },
         { "type": "add", "target": "character.catherine.relationship", "value": -50 }
       ]
-    },
-    {
-      "id": "e_victoria_to_final",
-      "from": "story_victoria_confrontation",
-      "to": "branch_final",
-      "choiceType": "confront",
-      "choiceHint": "Gather evidence and prepare for prosecution",
-      "priority": 1
-    },
-    {
-      "id": "e_victoria_to_final_2",
-      "from": "story_victoria_confrontation",
-      "to": "branch_final",
-      "choiceType": "deflect",
-      "choiceHint": "Accept Victoria's offer to 'make this go away'",
-      "priority": 2,
-      "effects": [
-        { "type": "add", "target": "character.victoria.relationship", "value": 30 },
-        { "type": "set", "target": "flags.victoria_threat", "value": true }
-      ]
-    },
-    {
-      "id": "e_victoria_to_safe",
-      "from": "story_victoria_confrontation",
-      "to": "story_safe_house",
-      "choiceType": "investigate",
-      "choiceHint": "Use the confrontation to buy time and search for Eleanor",
-      "priority": 3
     }
   ]
 }

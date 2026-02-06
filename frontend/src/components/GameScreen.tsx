@@ -105,6 +105,7 @@ export function GameScreen(): React.ReactElement {
       <ChoicePanel
         choices={currentTurn.choices}
         isLoading={isLoading}
+        isPointOfNoReturn={currentTurn.isPointOfNoReturn}
       />
 
       {/* Custom Response Dialog */}
