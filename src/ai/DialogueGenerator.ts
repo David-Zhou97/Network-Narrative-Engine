@@ -252,11 +252,13 @@ Output as JSON array:
         emotion: d.emotion,
       }));
 
-      const choices: PlayerChoice[] = (parsed.choices ?? []).map((choice, index) => ({
+      // Only create choices for edges that actually exist in the graph.
+      // Never fabricate edge IDs - that causes "Edge not found" errors at runtime.
+      const choices: PlayerChoice[] = edges.map((edge, index) => ({
         index,
-        text: choice.text,
-        edgeId: edges[index]?.id ?? `edge-${index}`,
-        tone: choice.tone,
+        text: (parsed.choices ?? [])[index]?.text ?? edge.choiceHint,
+        edgeId: edge.id,
+        tone: (parsed.choices ?? [])[index]?.tone ?? 'neutral',
       }));
 
       return {
@@ -296,21 +298,27 @@ export interface AIAPIClient {
  * Mock API client for testing
  */
 export class MockAIClient implements AIAPIClient {
-  async complete(_request: {
+  async complete(request: {
     systemPrompt: string;
     userPrompt: string;
     temperature: number;
     maxTokens: number;
   }): Promise<string> {
-    // Return mock response for testing
+    // Parse the number of choices from the prompt to avoid generating more
+    // choices than there are edges (which causes "Edge not found" errors)
+    const choiceMatches = request.userPrompt.match(/Choice \d+/g);
+    const numChoices = choiceMatches ? choiceMatches.length : 3;
+
+    const mockChoices = [
+      { text: 'Take the first path', tone: 'positive' },
+      { text: 'Consider your options carefully', tone: 'neutral' },
+      { text: 'Turn back the way you came', tone: 'negative' },
+    ];
+
     return JSON.stringify({
       narration: 'The scene unfolds before you with a sense of anticipation.',
       dialogues: [],
-      choices: [
-        { text: 'Take the first path', tone: 'positive' },
-        { text: 'Consider your options carefully', tone: 'neutral' },
-        { text: 'Turn back the way you came', tone: 'negative' },
-      ],
+      choices: mockChoices.slice(0, numChoices),
     });
   }
 }

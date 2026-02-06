@@ -334,18 +334,31 @@ export class StoryGeneratorService {
           node, allNodes, allEdges
         );
 
-        // Add new nodes and edges
+        // Add new nodes and edges, renaming duplicates instead of dropping them
         for (const newNode of branchResult.nodes) {
-          if (!allNodes.find(n => n.id === newNode.id)) {
-            allNodes.push(newNode);
-            yield { type: 'node_generated', node: newNode };
+          if (allNodes.find(n => n.id === newNode.id)) {
+            // Rename duplicate node ID instead of dropping it
+            const oldId = newNode.id;
+            newNode.id = `${oldId}_b${i}`;
+            // Update any edges that reference the old ID
+            for (const edge of branchResult.edges) {
+              if (edge.from === oldId) edge.from = newNode.id;
+              if (edge.to === oldId) edge.to = newNode.id;
+            }
+            console.log(`[StoryGenerator] Renamed duplicate node "${oldId}" to "${newNode.id}"`);
           }
+          allNodes.push(newNode);
+          yield { type: 'node_generated', node: newNode };
         }
         for (const newEdge of branchResult.edges) {
-          if (!allEdges.find(e => e.id === newEdge.id)) {
-            allEdges.push(newEdge);
-            yield { type: 'edge_generated', edge: newEdge };
+          if (allEdges.find(e => e.id === newEdge.id)) {
+            // Rename duplicate edge ID instead of dropping it
+            const oldId = newEdge.id;
+            newEdge.id = `${oldId}_b${i}`;
+            console.log(`[StoryGenerator] Renamed duplicate edge "${oldId}" to "${newEdge.id}"`);
           }
+          allEdges.push(newEdge);
+          yield { type: 'edge_generated', edge: newEdge };
         }
 
         yield {
@@ -1237,7 +1250,10 @@ Generate the edge JSON:`;
     // Step 5: Ensure all endings are reachable from entry nodes
     this.ensureEndingsReachable(graph, outgoingEdgesMap, incomingEdgesMap);
 
-    // Step 6: Ensure no nodes are trapped in cycles with no exit to an ending
+    // Step 6: Connect orphan nodes (unreachable from any entry) into the graph
+    this.fixOrphanNodes(graph, outgoingEdgesMap, incomingEdgesMap);
+
+    // Step 7: Ensure no nodes are trapped in cycles with no exit to an ending
     this.fixCycleTraps(graph, outgoingEdgesMap, incomingEdgesMap);
   }
 
@@ -1328,6 +1344,91 @@ Generate the edge JSON:`;
         (mergeNode as any).type = 'transition';
         (mergeNode as any).purpose = 'bridge';
         (mergeNode as any).isGenerated = true;
+      }
+    }
+  }
+
+  /**
+   * Fix orphan nodes that are unreachable from any entry node.
+   * These nodes exist in the graph but no path from an entry leads to them.
+   * Connect them by adding incoming edges from nearby reachable nodes.
+   */
+  private fixOrphanNodes(
+    graph: GeneratedGraph,
+    outgoingEdgesMap: Map<string, GeneratedEdge[]>,
+    incomingEdgesMap: Map<string, GeneratedEdge[]>
+  ): void {
+    const entryNodes = graph.nodes.filter(n => n.type === 'entry');
+    if (entryNodes.length === 0) return;
+
+    // BFS forward from entries to find all reachable nodes
+    const reachable = new Set<string>();
+    const queue = entryNodes.map(n => n.id);
+    for (const id of queue) reachable.add(id);
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      for (const edge of (outgoingEdgesMap.get(current) ?? [])) {
+        if (!reachable.has(edge.to)) {
+          reachable.add(edge.to);
+          queue.push(edge.to);
+        }
+      }
+    }
+
+    // Find orphan nodes (non-entry, unreachable)
+    const orphans = graph.nodes.filter(n => n.type !== 'entry' && !reachable.has(n.id));
+    if (orphans.length === 0) {
+      console.log('[StoryGenerator] fixOrphanNodes: No orphan nodes found');
+      return;
+    }
+
+    console.log(`[StoryGenerator] fixOrphanNodes: ${orphans.length} orphan node(s) found, connecting...`);
+
+    // Sort reachable non-ending nodes by orderHint descending to prefer connecting from later nodes
+    const reachableNodes = graph.nodes
+      .filter(n => n.type !== 'ending' && reachable.has(n.id))
+      .sort((a, b) => (b.orderHint ?? 0) - (a.orderHint ?? 0));
+
+    for (const orphan of orphans) {
+      const orphanOrder = orphan.orderHint ?? this.estimateNodeOrder(orphan, graph.edges, graph.nodes);
+
+      // Find the best reachable node to connect FROM → orphan
+      // Prefer a node with a similar or slightly earlier orderHint
+      let bestSource: GeneratedNode | null = null;
+      let bestDist = Infinity;
+      for (const candidate of reachableNodes) {
+        const candidateOrder = candidate.orderHint ?? 0;
+        // Prefer candidates slightly before the orphan (candidateOrder <= orphanOrder)
+        if (candidateOrder <= orphanOrder) {
+          const dist = orphanOrder - candidateOrder;
+          if (dist < bestDist) {
+            // Avoid creating 2-node cycle
+            const candidateIncoming = (incomingEdgesMap.get(candidate.id) ?? []).map(e => e.from);
+            if (!candidateIncoming.includes(orphan.id)) {
+              bestDist = dist;
+              bestSource = candidate;
+            }
+          }
+        }
+      }
+
+      // Fallback: any reachable node
+      if (!bestSource && reachableNodes.length > 0) {
+        bestSource = reachableNodes[0];
+      }
+
+      if (bestSource) {
+        const newEdge = this.createFixEdge(bestSource, orphan);
+        graph.edges.push(newEdge);
+        outgoingEdgesMap.get(bestSource.id)?.push(newEdge);
+        incomingEdgesMap.get(orphan.id)?.push(newEdge);
+        // Mark the orphan as now reachable so other orphans can connect to it
+        reachable.add(orphan.id);
+        reachableNodes.push(orphan);
+        console.log(`[StoryGenerator] fixOrphanNodes: Connected "${bestSource.id}" → "${orphan.id}"`);
+      } else {
+        console.warn(`[StoryGenerator] fixOrphanNodes: Could not find source for orphan "${orphan.id}"`);
       }
     }
   }
@@ -1461,10 +1562,10 @@ Generate the edge JSON:`;
 
     console.log(`[StoryGenerator] fixCycleTraps: ${trappedNodes.length} node(s) cannot reach any ending, fixing...`);
 
-    // For each trapped node, connect it to a node that CAN reach an ending
-    const anchorNodes = graph.nodes
+    // For each trapped node, connect it to a FORWARD node that CAN reach an ending
+    const reachableAnchors = graph.nodes
       .filter(n => n.type === 'anchor' && canReachEnding.has(n.id))
-      .sort((a, b) => (b.orderHint ?? 0) - (a.orderHint ?? 0));
+      .sort((a, b) => (a.orderHint ?? 0) - (b.orderHint ?? 0)); // ascending for forward search
 
     const exitNodes = graph.nodes.filter(
       n => n.type !== 'ending' && canReachEnding.has(n.id)
@@ -1474,10 +1575,17 @@ Generate the edge JSON:`;
       const existingOutgoing = new Set(
         (outgoingEdgesMap.get(trapped.id) ?? []).map(e => e.to)
       );
+      const trappedOrder = this.estimateNodeOrder(trapped, graph.edges, graph.nodes);
 
-      // Strategy 1: Connect to a reachable anchor
+      // Strategy 1: Connect to a reachable FORWARD anchor (higher orderHint)
       let connected = false;
-      for (const anchor of anchorNodes) {
+      const forwardAnchors = reachableAnchors.filter(a => (a.orderHint ?? 0) > trappedOrder);
+      // Fall back to all reachable anchors (prefer later ones) if no forward anchors
+      const candidateAnchors = forwardAnchors.length > 0
+        ? forwardAnchors
+        : [...reachableAnchors].sort((a, b) => (b.orderHint ?? 0) - (a.orderHint ?? 0));
+
+      for (const anchor of candidateAnchors) {
         if (existingOutgoing.has(anchor.id)) continue;
         // Avoid creating 2-node cycle
         const anchorOutgoing = (outgoingEdgesMap.get(anchor.id) ?? []).map(e => e.to);
@@ -1488,14 +1596,23 @@ Generate the edge JSON:`;
         outgoingEdgesMap.get(trapped.id)?.push(newEdge);
         incomingEdgesMap.get(anchor.id)?.push(newEdge);
         connected = true;
-        console.log(`[StoryGenerator] fixCycleTraps: Connected trapped "${trapped.id}" to anchor "${anchor.id}"`);
+        console.log(`[StoryGenerator] fixCycleTraps: Connected trapped "${trapped.id}" to forward anchor "${anchor.id}"`);
         break;
       }
 
       if (connected) continue;
 
-      // Strategy 2: Connect to any node that can reach an ending
-      for (const exit of exitNodes) {
+      // Strategy 2: Connect to a FORWARD node that can reach an ending
+      // Sort exit nodes by orderHint, preferring those forward from the trapped node
+      const sortedExits = [...exitNodes].sort((a, b) => {
+        const aOrder = a.orderHint ?? 0;
+        const bOrder = b.orderHint ?? 0;
+        const aForward = aOrder > trappedOrder ? 0 : 1;
+        const bForward = bOrder > trappedOrder ? 0 : 1;
+        if (aForward !== bForward) return aForward - bForward; // forward first
+        return aOrder - bOrder; // then by orderHint ascending
+      });
+      for (const exit of sortedExits) {
         if (existingOutgoing.has(exit.id)) continue;
         if (exit.id === trapped.id) continue;
         // Avoid creating 2-node cycle
@@ -1565,17 +1682,25 @@ Generate the edge JSON:`;
       return sourceIncoming.has(targetId) && !sourceOutgoing.has(targetId);
     };
 
-    // Strategy 1: For transition nodes, connect to the next anchor or merge
+    // Strategy 1: For transition nodes, connect to a FORWARD anchor or merge.
+    // Estimate the transition's position from its incoming edges' source orderHints.
     if (sourceNode.type === 'transition') {
-      for (const anchor of anchorNodes) {
-        if (!sourceOutgoing.has(anchor.id) && !wouldCreateCycle(anchor.id) && anchor.id !== sourceNode.id) {
-          return anchor;
-        }
+      const sourceOrder = this.estimateNodeOrder(sourceNode, allEdges, allNodes);
+      // Pick the nearest forward anchor (higher orderHint than source)
+      const forwardAnchors = anchorNodes
+        .filter(a => (a.orderHint ?? 0) > sourceOrder && !sourceOutgoing.has(a.id) && !wouldCreateCycle(a.id) && a.id !== sourceNode.id);
+      if (forwardAnchors.length > 0) {
+        return forwardAnchors[0]; // Already sorted ascending, first is nearest forward
       }
       for (const merge of mergeNodes) {
         if (!sourceOutgoing.has(merge.id) && !wouldCreateCycle(merge.id) && merge.id !== sourceNode.id) {
           return merge;
         }
+      }
+      // Last resort for transitions: any anchor (even backward) is better than nothing,
+      // but prefer endings over going backward
+      if (endingNodes.length > 0) {
+        return endingNodes[0];
       }
     }
 
@@ -1644,6 +1769,28 @@ Generate the edge JSON:`;
     }
 
     return null;
+  }
+
+  /**
+   * Estimate a node's position in the story based on its orderHint or
+   * the orderHints of its incoming edge sources.
+   */
+  private estimateNodeOrder(
+    node: GeneratedNode,
+    allEdges: GeneratedEdge[],
+    allNodes: GeneratedNode[]
+  ): number {
+    if (node.orderHint !== undefined) return node.orderHint;
+    // For nodes without orderHint, estimate from incoming edges
+    const incomingSources = allEdges
+      .filter(e => e.to === node.id)
+      .map(e => allNodes.find(n => n.id === e.from))
+      .filter((n): n is GeneratedNode => n !== undefined);
+    if (incomingSources.length > 0) {
+      const orders = incomingSources.map(n => n.orderHint ?? 0);
+      return Math.max(...orders);
+    }
+    return 0;
   }
 
   /**
