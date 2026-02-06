@@ -437,6 +437,8 @@ export interface TurnResult {
   isEnding: boolean;
   /** Ending details if applicable */
   ending?: EndingResult;
+  /** Whether the current choices lead to the final outcome (point of no return) */
+  isPointOfNoReturn?: boolean;
 }
 
 export interface GeneratedDialogue {

@@ -1,12 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useGame } from '../contexts/GameContext';
+import { PointOfNoReturnModal } from './PointOfNoReturnModal';
 import type { PlayerChoice } from '../types';
 import styles from './ChoicePanel.module.css';
 
 interface ChoicePanelProps {
   choices: PlayerChoice[];
   isLoading: boolean;
+  isPointOfNoReturn?: boolean;
 }
 
 // Wildcard prompts that add excitement and unpredictability
@@ -23,26 +25,54 @@ const WILDCARD_PROMPTS = [
   "Break the pattern",
 ];
 
-export function ChoicePanel({ choices, isLoading }: ChoicePanelProps): React.ReactElement {
+export function ChoicePanel({ choices, isLoading, isPointOfNoReturn }: ChoicePanelProps): React.ReactElement {
   const { makeChoice, openCustomResponse } = useGame();
+  const [ponrModalOpen, setPonrModalOpen] = useState(false);
+  const [pendingChoiceIndex, setPendingChoiceIndex] = useState<number | null>(null);
 
   // Generate a random wildcard prompt (memoized per render cycle)
   const wildcardPrompt = useMemo(() => {
     return WILDCARD_PROMPTS[Math.floor(Math.random() * WILDCARD_PROMPTS.length)];
   }, [choices]);
 
-  const handleChoiceClick = (index: number) => {
+  const executeChoice = useCallback((index: number) => {
     if (!isLoading) {
       makeChoice(index);
+    }
+  }, [isLoading, makeChoice]);
+
+  const handleChoiceClick = (index: number) => {
+    if (isLoading) return;
+    if (isPointOfNoReturn) {
+      setPendingChoiceIndex(index);
+      setPonrModalOpen(true);
+    } else {
+      executeChoice(index);
     }
   };
 
   const handleWildcardClick = () => {
-    if (!isLoading && choices.length > 0) {
-      // Pick a random choice from available choices
-      const randomIndex = Math.floor(Math.random() * Math.min(choices.length, 3));
-      makeChoice(randomIndex);
+    if (isLoading || choices.length === 0) return;
+    const randomIndex = Math.floor(Math.random() * Math.min(choices.length, 3));
+    if (isPointOfNoReturn) {
+      setPendingChoiceIndex(randomIndex);
+      setPonrModalOpen(true);
+    } else {
+      executeChoice(randomIndex);
     }
+  };
+
+  const handlePonrConfirm = () => {
+    setPonrModalOpen(false);
+    if (pendingChoiceIndex !== null) {
+      executeChoice(pendingChoiceIndex);
+      setPendingChoiceIndex(null);
+    }
+  };
+
+  const handlePonrCancel = () => {
+    setPonrModalOpen(false);
+    setPendingChoiceIndex(null);
   };
 
   const handleCustomize = (index: number, e: React.MouseEvent) => {
@@ -118,6 +148,13 @@ export function ChoicePanel({ choices, isLoading }: ChoicePanelProps): React.Rea
           </div>
         </div>
       )}
+
+      {/* Point of No Return confirmation modal */}
+      <PointOfNoReturnModal
+        isOpen={ponrModalOpen}
+        onConfirm={handlePonrConfirm}
+        onCancel={handlePonrCancel}
+      />
     </div>
   );
 }

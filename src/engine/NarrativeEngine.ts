@@ -245,11 +245,20 @@ export class NarrativeEngine {
     // Get available choices
     const availableEdges = this.choiceResolver.getAvailableChoices(currentNodeId);
 
+    // Check if any available edge leads to a branch node or ending (point of no return)
+    const isPointOfNoReturn = availableEdges.some((edge) =>
+      this.graphManager.isBranchNode(edge.to) || this.graphManager.isEndingNode(edge.to)
+    );
+
     // Generate turn content via AI or fallback
     if (this.aiProvider) {
-      return await this.generateAITurn(currentNode, availableEdges);
+      const turn = await this.generateAITurn(currentNode, availableEdges);
+      turn.isPointOfNoReturn = isPointOfNoReturn;
+      return turn;
     } else {
-      return this.generateFallbackTurn(currentNode, availableEdges);
+      const turn = this.generateFallbackTurn(currentNode, availableEdges);
+      turn.isPointOfNoReturn = isPointOfNoReturn;
+      return turn;
     }
   }
 
